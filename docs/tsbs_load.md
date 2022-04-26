@@ -31,7 +31,7 @@ important here `db-specific` and `runner`
   
 To generate an example configuration file for a specific database run
 ```shell script
-$ tsbs_load config --target=<db-name> --data-source=[FILE|SIMULATOR]
+$ load config --target=<db-name> --data-source=[FILE|SIMULATOR]
 ```
 specifying db-name to one of the implemented databases and data-source to
 FILE or SIMULATOR
@@ -43,7 +43,7 @@ The generated config file is saved in `./config.yaml`
 ### Sample config files
 
 You can find sample YAML configuration files for TimescaleDB in the 
-[sample-configs](https://github.com/timescale/tsbs/tree/master/docs/sample-configs) directory. Both single and multi-node examples are provided
+[sample-configs](https://github.com/cnosdb/tsdb-comparisons/tree/master/docs/sample-configs) directory. Both single and multi-node examples are provided
 for `FILE` and `SIMULATOR` modes.
 
 ## On the fly simulation and load with `data-source: SIMULATOR`
@@ -59,11 +59,11 @@ are the same flags that you need to specify when running `tsbs_generate_data`.
 
 You can run `tsbs_load` with 
 ```shell script
-$ tsbs_load load <db_name> --config=./path-to-config.yaml
+$ load load <db_name> --config=./path-to-config.yaml
 ```
 Where `<db_name>` is one of the implemented databases or you can run 
 ```shell script
-$ tsbs_load load --help
+$ load load --help
 ```
 for a list of the available databases.
 
@@ -74,7 +74,7 @@ information about what each of the properties represents. You can easily discove
 more details about each property by running:
  
 ```shell script
-$ tsbs_load load --help
+$ load load --help
 ```
 This will list all the available flags configurable for all databases. These flags
 include the flags for `data-source` and `loader.runner`. The `--loader.runner.db-name` flag
@@ -95,12 +95,12 @@ Some of the properties are only valid for specific databases. These
 properties go under the `loader.db-specific` section. To view information
 about them you can run:
 ```shell script
-$ tsbs_load load <db_name> --help
+$ load load <db_name> --help
 ```
 
 For example for timescaledb, you can see the following:
 ```shell script
-$ tsbs_load load timescaledb --help
+$ load load timescaledb --help
 ...
 --loader.db-specific.chunk-time 
     duration

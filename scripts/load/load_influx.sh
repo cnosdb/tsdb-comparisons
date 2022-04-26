@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Ensure loader is available
-EXE_FILE_NAME=${EXE_FILE_NAME:-$(which tsbs_load_influx)}
+EXE_FILE_NAME=${EXE_FILE_NAME:-$(which load_influx)}
 if [[ -z "$EXE_FILE_NAME" ]]; then
     echo "tsbs_load_influx not available. It is not specified explicitly and not found in \$PATH"
     exit 1

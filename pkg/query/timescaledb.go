@@ -6,11 +6,11 @@ import (
 )
 
 // TimescaleDB encodes a TimescaleDB request. This will be serialized for use
-// by the tsbs_run_queries_timescaledb program.
+// by the run_queries_timescaledb program.
 type TimescaleDB struct {
 	HumanLabel       []byte
 	HumanDescription []byte
-
+	
 	Hypertable []byte // e.g. "cpu"
 	SqlQuery   []byte
 	id         uint64
@@ -63,9 +63,9 @@ func (q *TimescaleDB) Release() {
 	q.HumanLabel = q.HumanLabel[:0]
 	q.HumanDescription = q.HumanDescription[:0]
 	q.id = 0
-
+	
 	q.Hypertable = q.Hypertable[:0]
 	q.SqlQuery = q.SqlQuery[:0]
-
+	
 	TimescaleDBPool.Put(q)
 }

@@ -2,7 +2,7 @@ package common
 
 import (
 	"fmt"
-	"github.com/timescale/tsbs/pkg/data"
+	"github.com/cnosdb/tsdb-comparisons/pkg/data"
 	"testing"
 	"time"
 )
@@ -37,22 +37,22 @@ type dummyGenerator struct{}
 
 func (d dummyGenerator) Measurements() []SimulatedMeasurement {
 	sm := make([]SimulatedMeasurement, dummyGeneratorMeasurementCount)
-
+	
 	for i := range sm {
 		sm[i] = &dummyMeasurement{}
 	}
-
+	
 	return sm
 }
 
 func (d dummyGenerator) Tags() []Tag {
 	tags := make([]Tag, 1)
-
+	
 	tags[0] = Tag{
 		Key:   []byte("key"),
 		Value: "value",
 	}
-
+	
 	return tags
 }
 
@@ -70,7 +70,7 @@ func TestBaseSimulatorNext(t *testing.T) {
 	writtenIdx := []int{10, 55, 100}
 	p := data.NewPoint()
 	totalPerRun := testGeneratorScale * dummyGeneratorMeasurementCount
-
+	
 	runFn := func(run int) {
 		for i := 0; i < totalPerRun; i++ {
 			write := s.Next(p)
@@ -83,13 +83,13 @@ func TestBaseSimulatorNext(t *testing.T) {
 			} else if generatorIdx >= writtenIdx[run-1] && write {
 				t.Errorf("run %d: should not write point at i = %d, but am", run, i)
 			}
-
+			
 			if got := int(s.epoch); got != run-1 {
 				t.Errorf("run %d: epoch prematurely turned over", run)
 			}
 		}
 	}
-
+	
 	// First run through:
 	runFn(1)
 	// Second run through, should wrap around and do hosts again
@@ -100,13 +100,13 @@ func TestBaseSimulatorNext(t *testing.T) {
 
 func TestBaseSimulatorTagKeys(t *testing.T) {
 	s := testBaseConf.NewSimulator(time.Second, 0).(*BaseSimulator)
-
+	
 	tagKeys := s.TagKeys()
-
+	
 	if got := len(tagKeys); got != 1 {
 		t.Fatalf("tag key count incorrect, got %d want 1", got)
 	}
-
+	
 	if got := string(tagKeys[0]); got != "key" {
 		t.Errorf("tag key incorrect, got %s want key", got)
 	}
@@ -119,22 +119,22 @@ func TestBaseSimulatorTagKeysPanic(t *testing.T) {
 			t.Errorf("did not panic when should")
 		}
 	}()
-
+	
 	s := BaseSimulator{}
 	s.TagKeys()
-
+	
 	t.Fatalf("test should have stopped at this point")
 }
 
 func TestBaseSimulatorTagTypes(t *testing.T) {
 	s := testBaseConf.NewSimulator(time.Second, 0).(*BaseSimulator)
-
+	
 	tagTypes := s.TagTypes()
-
+	
 	if got := len(tagTypes); got != 1 {
 		t.Fatalf("tag key count incorrect, got %d want 1", got)
 	}
-
+	
 	if got := tagTypes[0]; got != "string" {
 		t.Errorf("tag type incorrect, got %s want string", got)
 	}
@@ -147,32 +147,32 @@ func TestBaseSimulatorTagTypesPanic(t *testing.T) {
 			t.Errorf("did not panic when should")
 		}
 	}()
-
+	
 	s := BaseSimulator{}
 	s.TagTypes()
-
+	
 	t.Fatalf("test should have stopped at this point")
 }
 
 func TestBaseSimulatorFields(t *testing.T) {
 	s := testBaseConf.NewSimulator(time.Second, 0).(*BaseSimulator)
-
+	
 	fields := s.Fields()
-
+	
 	if got := len(fields); got != 1 {
 		t.Fatalf("fields count incorrect, got %d want 1", got)
 	}
-
+	
 	got, ok := fields[string(dummyMeasurementName)]
-
+	
 	if !ok {
 		t.Fatalf("field key not set, want %s", string(dummyMeasurementName))
 	}
-
+	
 	if len(got) != 1 {
 		t.Fatalf("field count incorrect, got %d want 1", len(got))
 	}
-
+	
 	if string(got[0]) != string(dummyFieldLabel) {
 		t.Errorf("unexpected field value, got %s want %s", string(got[0]), string(dummyFieldLabel))
 	}
@@ -185,10 +185,10 @@ func TestBaseSimulatorFieldsPanic(t *testing.T) {
 			t.Errorf("did not panic when should")
 		}
 	}()
-
+	
 	s := BaseSimulator{}
 	s.Fields()
-
+	
 	t.Fatalf("test should have stopped at this point")
 }
 
@@ -206,7 +206,7 @@ func TestBaseSimulatorConfigNewSimulator(t *testing.T) {
 		GeneratorConstructor: dummyGeneratorConstructor,
 	}
 	cases := []uint64{0, 5, 10}
-
+	
 	for _, limit := range cases {
 		t.Run(fmt.Sprintf("limit %d", limit), func(t *testing.T) {
 			sim := conf.NewSimulator(duration, limit).(*BaseSimulator)

@@ -1,10 +1,10 @@
 ################################################################################
 # This example configuration requires that your data is pre-generated using
-# `tsbs_generate_data`. This will provide the best testing of data ingest, but
+# `generate_data`. This will provide the best testing of data ingest, but
 # does require considerable disk space to generate initially.
 #
 # See the documentation for each system for what configuration is available, 
-# typically found at: https://github.com/timescale/tsbs/tree/master/docs
+# typically found at: https://github.com/cnosdb/tsdb-comparisons/tree/master/docs
 # 
 ################################################################################
 

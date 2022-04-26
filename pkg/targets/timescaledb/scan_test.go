@@ -7,9 +7,9 @@ import (
 	"log"
 	"strings"
 	"testing"
-
-	"github.com/timescale/tsbs/pkg/data"
-	"github.com/timescale/tsbs/pkg/data/usecases/common"
+	
+	"github.com/cnosdb/tsdb-comparisons/pkg/data"
+	"github.com/cnosdb/tsdb-comparisons/pkg/data/usecases/common"
 )
 
 func TestHostnameIndexer(t *testing.T) {
@@ -21,7 +21,7 @@ func TestHostnameIndexer(t *testing.T) {
 		hypertable: "foo",
 		row:        &insertData{fields: "0.0,1.0,2.0"},
 	}
-
+	
 	// single partition check
 	indexer := &hostnameIndexer{1}
 	for _, r := range tagRows {
@@ -31,7 +31,7 @@ func TestHostnameIndexer(t *testing.T) {
 			t.Errorf("did not get idx 0 for single partition")
 		}
 	}
-
+	
 	// multiple partition check
 	cases := []uint{2, 10, 100}
 	for _, n := range cases {
@@ -223,13 +223,13 @@ func TestFileDataSourceHeaders(t *testing.T) {
 			shouldFatal: true,
 		},
 	}
-
+	
 	for _, c := range cases {
 		br := bufio.NewReader(bytes.NewReader([]byte(c.input)))
 		ds := &fileDataSource{
 			scanner: bufio.NewScanner(br),
 		}
-
+		
 		if c.shouldFatal {
 			isCalled := false
 			fatal = func(fmt string, args ...interface{}) {
@@ -242,7 +242,7 @@ func TestFileDataSourceHeaders(t *testing.T) {
 			}
 		} else {
 			headers := ds.Headers()
-
+			
 			gotKeys := strings.Join(headers.TagKeys, ",")
 			if gotKeys != c.wantTags {
 				t.Errorf("%s: incorrect tags: got\n%s\nwant\n%s", c.desc, gotKeys, c.wantTags)
@@ -251,7 +251,7 @@ func TestFileDataSourceHeaders(t *testing.T) {
 			if gotKeyTypes != c.wantTypes {
 				t.Errorf("%s: incorrect types: got\n%s\nwant\n%s", c.desc, gotKeyTypes, c.wantTypes)
 			}
-
+			
 			if len(headers.FieldKeys) != len(c.wantCols) {
 				t.Errorf("%s: incorrect cols len: got %d want %d", c.desc, len(headers.FieldKeys), len(c.wantCols))
 			}

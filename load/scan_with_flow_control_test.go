@@ -5,10 +5,10 @@ import (
 	"bytes"
 	"io"
 	"testing"
-
-	"github.com/timescale/tsbs/pkg/data"
-	"github.com/timescale/tsbs/pkg/data/usecases/common"
-	"github.com/timescale/tsbs/pkg/targets"
+	
+	"github.com/cnosdb/tsdb-comparisons/pkg/data"
+	"github.com/cnosdb/tsdb-comparisons/pkg/data/usecases/common"
+	"github.com/cnosdb/tsdb-comparisons/pkg/targets"
 )
 
 type testBatch struct {
@@ -147,14 +147,14 @@ func TestNewPoint(t *testing.T) {
 			t.Errorf("NewPoint did not have right data: got %v want %d", p.Data, x)
 		}
 	}
-
+	
 	// with a byte arr
 	byteArr := []byte("test")
 	p := data.NewLoadedPoint(byteArr)
 	if !bytes.Equal(p.Data.([]byte), byteArr) {
 		t.Errorf("NewPoint did not have right byte arr: got %v want %v", p.Data, byteArr)
 	}
-
+	
 	// with a struct
 	batch := &testBatch{id: 101, len: 500}
 	p = data.NewLoadedPoint(batch)
@@ -179,7 +179,7 @@ func (d *testDataSource) NextItem() data.LoadedPoint {
 	}
 	ret.Data = b
 	d.called++
-
+	
 	return ret
 }
 
@@ -210,7 +210,7 @@ func _boringWorker(c *duplexChannel) {
 
 func TestScanWithIndexer(t *testing.T) {
 	testData := []byte{0x00, 0x01, 0x02}
-
+	
 	cases := []struct {
 		desc        string
 		batchSize   uint
@@ -236,7 +236,7 @@ func TestScanWithIndexer(t *testing.T) {
 			limit:     4,
 			wantCalls: uint64(len(testData)),
 		},
-
+		
 		{
 			desc:      "scan w/ leftover batches",
 			batchSize: 2,

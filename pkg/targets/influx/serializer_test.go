@@ -1,7 +1,7 @@
 package influx
 
 import (
-	"github.com/timescale/tsbs/pkg/data/serialize"
+	"github.com/cnosdb/tsdb-comparisons/pkg/data/serialize"
 	"testing"
 )
 
@@ -36,6 +36,6 @@ func TestInfluxSerializerSerialize(t *testing.T) {
 			Output:     "cpu usage_guest_nice=38.24311829 1451606400000000000\n",
 		},
 	}
-
+	
 	serialize.SerializerTest(t, cases, &Serializer{})
 }

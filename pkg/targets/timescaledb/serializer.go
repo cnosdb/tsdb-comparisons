@@ -2,8 +2,8 @@ package timescaledb
 
 import (
 	"fmt"
-	"github.com/timescale/tsbs/pkg/data"
-	"github.com/timescale/tsbs/pkg/data/serialize"
+	"github.com/cnosdb/tsdb-comparisons/pkg/data"
+	"github.com/cnosdb/tsdb-comparisons/pkg/data/serialize"
 	"io"
 )
 
@@ -34,7 +34,7 @@ func (s *Serializer) Serialize(p *data.Point, w io.Writer) error {
 	if err != nil {
 		return err
 	}
-
+	
 	// Field row second
 	buf = make([]byte, 0, 256)
 	buf = append(buf, p.MeasurementName()...)

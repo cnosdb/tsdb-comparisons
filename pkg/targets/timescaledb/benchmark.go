@@ -1,9 +1,9 @@
 package timescaledb
 
 import (
-	"github.com/timescale/tsbs/internal/inputs"
-	"github.com/timescale/tsbs/pkg/data/source"
-	"github.com/timescale/tsbs/pkg/targets"
+	"github.com/cnosdb/tsdb-comparisons/internal/inputs"
+	"github.com/cnosdb/tsdb-comparisons/pkg/data/source"
+	"github.com/cnosdb/tsdb-comparisons/pkg/targets"
 )
 
 const pgxDriver = "pgx"
@@ -21,7 +21,7 @@ func NewBenchmark(dbName string, opts *LoadingOptions, dataSourceConfig *source.
 		}
 		ds = newSimulationDataSource(simulator)
 	}
-
+	
 	return &benchmark{
 		opts:   opts,
 		ds:     ds,

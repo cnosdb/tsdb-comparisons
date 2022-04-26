@@ -101,8 +101,8 @@ scripts). The easiest way to get and install the Go programs is to use
 `go get` and then `make all` to install all binaries:
 ```bash
 # Fetch TSBS and its dependencies
-$ go get github.com/timescale/tsbs
-$ cd $GOPATH/src/github.com/timescale/tsbs
+$ go get github.com/cnosdb/tsdb-comparisons
+$ cd $GOPATH/src/github.com/cnosdb/tsdb-comparisons
 $ make
 ```
 
@@ -136,7 +136,7 @@ datasets, if you chose to generate for multiple databases) that can
 be used to benchmark data loading of the database(s) chosen using
 the `tsbs_generate_data` tool:
 ```bash
-$ tsbs_generate_data --use-case="iot" --seed=123 --scale=4000 \
+$ generate_data --use-case="iot" --seed=123 --scale=4000 \
     --timestamp-start="2016-01-01T00:00:00Z" \
     --timestamp-end="2016-01-04T00:00:00Z" \
     --log-interval="10s" --format="timescaledb" \
@@ -180,7 +180,7 @@ helper script.
 
 For generating just one set of queries for a given type:
 ```bash
-$ tsbs_generate_queries --use-case="iot" --seed=123 --scale=4000 \
+$ generate_queries --use-case="iot" --seed=123 --scale=4000 \
     --timestamp-start="2016-01-01T00:00:00Z" \
     --timestamp-end="2016-01-04T00:00:01Z" \
     --queries=1000 --query-type="breakdown-frequency" --format="timescaledb" \
@@ -217,17 +217,17 @@ fly.
 You first start by generating a config yaml file populated with the default
 values for each property with:
 ```shell script
-$ tsbs_load config --target=<db-name> --data-source=[FILE|SIMULATOR]
+$ load config --target=<db-name> --data-source=[FILE|SIMULATOR]
 ```
 for example, to generate an example for TimescaleDB, loading the data from file
 ```shell script
-$ tsbs_load config --target=timescaledb --data-source=FILE
+$ load config --target=timescaledb --data-source=FILE
 Wrote example config to: ./config.yaml
 ```
 
 You can then run tsbs_load with the generated config file with:
 ```shell script
-$ tsbs_load load timescaledb --config=./config.yaml
+$ load load timescaledb --config=./config.yaml
 ```
 
 For more details on how to use tsbs_load check out the [supplemental docs](docs/tsbs_load.md)
@@ -249,7 +249,7 @@ Here's an example of loading data to a remote timescaledb instance with SSL
 required, with a gzipped data set as created in the instructions above:
 
 ```bash
-cat /tmp/timescaledb-data.gz | gunzip | tsbs_load_timescaledb \
+cat /tmp/timescaledb-data.gz | gunzip | load_timescaledb \
 --postgres="sslmode=require" --host="my.tsdb.host" --port=5432 --pass="password" \
 --user="benchmarkuser" --admin-db-name=defaultdb --workers=8  \
 --in-table-partition-tag=true --chunk-time=8h --write-profile= \
@@ -324,7 +324,7 @@ just use the corresponding `tsbs_run_queries_` binary for the database
 being tested:
 ```bash
 $ cat /tmp/queries/timescaledb-cpu-max-all-eight-hosts-queries.gz | \
-    gunzip | tsbs_run_queries_timescaledb --workers=8 \
+    gunzip | run_queries_timescaledb --workers=8 \
         --postgres="host=localhost user=postgres sslmode=disable"
 ```
 
@@ -427,7 +427,7 @@ the results.
 We welcome contributions from the community to make TSBS better!
 
 You can help either by opening an
-[issue](https://github.com/timescale/tsbs/issues) with
+[issue](https://github.com/cnosdb/tsdb-comparisons/issues) with
 any suggestions or bug reports, or by forking this repository,
 making your own contribution, and submitting a pull request.
 

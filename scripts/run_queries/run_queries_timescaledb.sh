@@ -4,7 +4,7 @@
 set -e
 
 # Ensure runner is available
-EXE_FILE_NAME=${EXE_FILE_NAME:-$(which tsbs_run_queries_timescaledb)}
+EXE_FILE_NAME=${EXE_FILE_NAME:-$(which run_queries_timescaledb)}
 if [[ -z "$EXE_FILE_NAME" ]]; then
     echo "tsbs_run_queries_timescaledb not available. It is not specified explicitly and not found in \$PATH"
     exit 1
