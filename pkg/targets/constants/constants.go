@@ -4,11 +4,13 @@ package constants
 const (
 	FormatInflux      = "influx"
 	FormatTimescaleDB = "timescaledb"
+	FormatCnosDB      = "cnosdb"
 )
 
 func SupportedFormats() []string {
 	return []string{
 		FormatInflux,
 		FormatTimescaleDB,
+		FormatCnosDB,
 	}
 }

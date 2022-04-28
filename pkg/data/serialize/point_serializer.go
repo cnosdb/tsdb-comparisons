@@ -1,7 +1,7 @@
 package serialize
 
 import (
-	"github.com/timescale/tsbs/pkg/data"
+	"github.com/cnosdb/tsdb-comparisons/pkg/data"
 	"io"
 )
 

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Ensure generator is available
-EXE_FILE_NAME=${EXE_FILE_NAME:-$(which tsbs_generate_queries)}
+EXE_FILE_NAME=${EXE_FILE_NAME:-$(which generate_queries)}
 if [[ -z "${EXE_FILE_NAME}" ]]; then
     echo "tsbs_generate_queries not available. It is not specified explicitly and not found in \$PATH"
     exit 1

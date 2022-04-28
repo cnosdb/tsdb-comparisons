@@ -1,7 +1,7 @@
 package common
 
 import (
-	"github.com/timescale/tsbs/pkg/data"
+	"github.com/cnosdb/tsdb-comparisons/pkg/data"
 	"hash"
 	"hash/fnv"
 )

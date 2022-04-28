@@ -6,14 +6,14 @@ import (
 	"sync"
 	"testing"
 	"time"
-
-	"github.com/timescale/tsbs/pkg/data"
-	"github.com/timescale/tsbs/pkg/targets"
+	
+	"github.com/cnosdb/tsdb-comparisons/pkg/data"
+	"github.com/cnosdb/tsdb-comparisons/pkg/targets"
 )
 
 func TestScanWithoutFlowControl(t *testing.T) {
 	testData := []byte{0x00, 0x01, 0x02}
-
+	
 	cases := []struct {
 		desc             string
 		batchSize        uint

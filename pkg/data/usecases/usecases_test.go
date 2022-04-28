@@ -1,8 +1,8 @@
 package usecases
 
 import (
-	"github.com/timescale/tsbs/pkg/data/usecases/common"
-	"github.com/timescale/tsbs/pkg/data/usecases/iot"
+	"github.com/cnosdb/tsdb-comparisons/pkg/data/usecases/common"
+	"github.com/cnosdb/tsdb-comparisons/pkg/data/usecases/iot"
 	"reflect"
 	"testing"
 	"time"
@@ -20,7 +20,7 @@ func TestGetSimulatorConfig(t *testing.T) {
 		InitialScale: 1,
 		LogInterval:  defaultLogInterval,
 	}
-
+	
 	checkType := func(use string, want common.SimulatorConfig) {
 		wantType := reflect.TypeOf(want)
 		dgc.Use = use
@@ -32,9 +32,9 @@ func TestGetSimulatorConfig(t *testing.T) {
 			t.Errorf("use '%s' does not give right scfg: got %v want %v", use, got, wantType)
 		}
 	}
-
+	
 	checkType(common.UseCaseIoT, &iot.SimulatorConfig{})
-
+	
 	dgc.Use = "bogus use case"
 	_, err := GetSimulatorConfig(dgc)
 	if err == nil {

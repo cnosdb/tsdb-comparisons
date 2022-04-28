@@ -1,8 +1,8 @@
 package iot
 
 import (
-	"github.com/timescale/tsbs/pkg/data"
-	"github.com/timescale/tsbs/pkg/data/usecases/common"
+	"github.com/cnosdb/tsdb-comparisons/pkg/data"
+	"github.com/cnosdb/tsdb-comparisons/pkg/data/usecases/common"
 	"math/rand"
 	"time"
 )
@@ -27,10 +27,10 @@ var (
 	labelGrade           = []byte("grade")
 	labelFuelConsumption = []byte("fuel_consumption")
 	geoStepUD            = common.UD(-0.005, 0.005)
-
+	
 	bigUD   = common.UD(-10, 10)
 	smallUD = common.UD(-5, 5)
-
+	
 	readingsFields = []common.LabeledDistributionMaker{
 		{
 			Label: labelLatitude,
@@ -108,7 +108,7 @@ func (m *ReadingsMeasurement) ToPoint(p *data.Point) {
 	p.SetMeasurementName(labelReadings)
 	copy := m.Timestamp
 	p.SetTimestamp(&copy)
-
+	
 	for i, d := range m.Distributions {
 		p.AppendField(readingsFields[i].Label, float64(d.Get()))
 	}
@@ -117,7 +117,7 @@ func (m *ReadingsMeasurement) ToPoint(p *data.Point) {
 // NewReadingsMeasurement creates a new ReadingsMeasurement with start time.
 func NewReadingsMeasurement(start time.Time) *ReadingsMeasurement {
 	sub := common.NewSubsystemMeasurementWithDistributionMakers(start, readingsFields)
-
+	
 	return &ReadingsMeasurement{
 		SubsystemMeasurement: sub,
 	}

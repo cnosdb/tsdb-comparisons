@@ -2,9 +2,9 @@ package usecases
 
 import (
 	"fmt"
-	"github.com/timescale/tsbs/internal/utils"
-	"github.com/timescale/tsbs/pkg/data/usecases/common"
-	"github.com/timescale/tsbs/pkg/data/usecases/iot"
+	"github.com/cnosdb/tsdb-comparisons/internal/utils"
+	"github.com/cnosdb/tsdb-comparisons/pkg/data/usecases/common"
+	"github.com/cnosdb/tsdb-comparisons/pkg/data/usecases/iot"
 )
 
 const errCannotParseTimeFmt = "cannot parse time from string '%s': %v"
@@ -20,14 +20,14 @@ func GetSimulatorConfig(dgc *common.DataGeneratorConfig) (common.SimulatorConfig
 	if err != nil {
 		return nil, fmt.Errorf(errCannotParseTimeFmt, dgc.TimeEnd, err)
 	}
-
+	
 	switch dgc.Use {
-
+	
 	case common.UseCaseIoT:
 		ret = &iot.SimulatorConfig{
 			Start: tsStart,
 			End:   tsEnd,
-
+			
 			InitGeneratorScale:   dgc.InitialScale,
 			GeneratorScale:       dgc.Scale,
 			GeneratorConstructor: iot.NewTruck,

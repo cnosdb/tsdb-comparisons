@@ -3,7 +3,7 @@ package load
 import (
 	"bytes"
 	"fmt"
-	"github.com/timescale/tsbs/pkg/targets"
+	"github.com/cnosdb/tsdb-comparisons/pkg/targets"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -32,7 +32,7 @@ type testCreator struct {
 	exists    bool
 	errRemove bool
 	errCreate bool
-
+	
 	initCalled   bool
 	createCalled bool
 	removeCalled bool
@@ -120,7 +120,7 @@ func TestUseDBCreator(t *testing.T) {
 		doCreate     bool
 		doPost       bool
 		doClose      bool
-
+		
 		shouldPanic bool
 		errRemove   bool
 		errCreate   bool
@@ -175,7 +175,7 @@ func TestUseDBCreator(t *testing.T) {
 			errRemove:   true,
 			shouldPanic: true,
 		},
-
+		
 		{
 			desc:        "createDB errs, should panic",
 			doLoad:      true,
@@ -206,7 +206,7 @@ func TestUseDBCreator(t *testing.T) {
 			errCreate: c.errCreate,
 			errRemove: c.errRemove,
 		}
-
+		
 		// Decide whether to decorate the core DBCreator
 		var dbc targets.DBCreator
 		if c.doPost {
@@ -216,15 +216,15 @@ func TestUseDBCreator(t *testing.T) {
 		} else {
 			dbc = &core
 		}
-
+		
 		if c.shouldPanic {
 			testPanic(r, dbc, c.desc)
 			continue
 		}
-
+		
 		deferFn := r.useDBCreator(dbc)
 		deferFn()
-
+		
 		// Recover the core if decorated
 		if c.doPost {
 			core = dbc.(*testCreatorPost).testCreator
@@ -257,7 +257,7 @@ func TestUseDBCreator(t *testing.T) {
 		} else if !core.initCalled {
 			t.Errorf("%s: doLoad is false but Init not called", c.desc)
 		}
-
+		
 		// Test closing function is set or not set
 		if c.doClose != core.closedCalled {
 			t.Errorf("%s: close condition not equal: got %v want %v", c.desc, core.closedCalled, c.doClose)
@@ -323,23 +323,23 @@ func TestWork(t *testing.T) {
 	<-c.toScanner
 	c.close()
 	wg.Wait()
-
+	
 	if got := b.processors[0].worker; got != 0 {
 		t.Errorf("TestWork: processor 0 has wrong worker id: got %d want %d", got, 0)
 	}
-
+	
 	if got := b.processors[1].worker; got != 1 {
 		t.Errorf("TestWork: processor 0 has wrong worker id: got %d want %d", got, 1)
 	}
-
+	
 	if got := br.metricCnt; got != 2 {
 		t.Errorf("TestWork: invalid metric count: got %d want %d", got, 2)
 	}
-
+	
 	if !b.processors[0].closed {
 		t.Errorf("TestWork: processor 0 not closed")
 	}
-
+	
 	if !b.processors[1].closed {
 		t.Errorf("TestWork: processor 1 not closed")
 	}
@@ -359,19 +359,19 @@ func TestWorkWithSleep(t *testing.T) {
 	<-c.toScanner
 	c.close()
 	wg.Wait()
-
+	
 	if got := b.processors[0].worker; got != 0 {
 		t.Errorf("processor 0 has wrong worker id: got %d want %d", got, 0)
 	}
-
+	
 	if got := br.metricCnt; got != 1 {
 		t.Errorf("invalid metric count: got %d want %d", got, 1)
 	}
-
+	
 	if !b.processors[0].closed {
 		t.Errorf("processor 0 not closed")
 	}
-
+	
 	numTimesSleepRegulatorCalled := br.sleepRegulator.(*testSleepRegulator).calledTimes
 	if numTimesSleepRegulatorCalled != 1 {
 		t.Errorf("sleep regulator called %d times instead of 1", numTimesSleepRegulatorCalled)
@@ -415,7 +415,7 @@ func TestSummary(t *testing.T) {
 			want:    "\nSummary:\nloaded 10 metrics in 1.000sec with 0 workers (mean rate 10.00 metrics/sec)\nloaded 1 rows in 1.000sec with 0 workers (mean rate 1.00 rows/sec)\n",
 		},
 	}
-
+	
 	for _, c := range cases {
 		br := &CommonBenchmarkRunner{}
 		br.metricCnt = c.metrics
@@ -444,17 +444,17 @@ func TestReport(t *testing.T) {
 	br := &CommonBenchmarkRunner{}
 	duration := 200 * time.Millisecond
 	go br.report(duration)
-
+	
 	time.Sleep(25 * time.Millisecond)
 	if got := atomic.LoadInt64(&counter); got != 1 {
 		t.Errorf("TestReport: header count check incorrect: got %d want %d", got, 1)
 	}
-
+	
 	time.Sleep(duration)
 	if got := atomic.LoadInt64(&counter); got != 2 {
 		t.Errorf("TestReport: counter check incorrect (1): got %d want %d", got, 2)
 	}
-
+	
 	time.Sleep(duration)
 	if got := atomic.LoadInt64(&counter); got != 3 {
 		t.Errorf("TestReport: counter check incorrect (2): got %d want %d", got, 3)
@@ -465,7 +465,7 @@ func TestReport(t *testing.T) {
 	if end[len(end)-1:len(end)] != "-" {
 		t.Errorf("TestReport: non-row report does not end in -")
 	}
-
+	
 	// update row count so line is different
 	atomic.StoreUint64(&br.rowCnt, 1)
 	time.Sleep(duration)

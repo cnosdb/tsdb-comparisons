@@ -1,7 +1,7 @@
 package timescaledb
 
 import (
-	"github.com/timescale/tsbs/pkg/data/serialize"
+	"github.com/cnosdb/tsdb-comparisons/pkg/data/serialize"
 	"testing"
 )
 
@@ -28,7 +28,7 @@ func TestTimescaleDBSerializerSerialize(t *testing.T) {
 			Output:     "tags\ncpu,1451606400000000000,38.24311829\n",
 		},
 	}
-
+	
 	serialize.SerializerTest(t, cases, &Serializer{})
 }
 

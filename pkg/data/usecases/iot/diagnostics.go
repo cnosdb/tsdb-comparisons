@@ -1,8 +1,8 @@
 package iot
 
 import (
-	"github.com/timescale/tsbs/pkg/data"
-	"github.com/timescale/tsbs/pkg/data/usecases/common"
+	"github.com/cnosdb/tsdb-comparisons/pkg/data"
+	"github.com/cnosdb/tsdb-comparisons/pkg/data/usecases/common"
 	"time"
 )
 
@@ -21,7 +21,7 @@ var (
 	loadUD           = common.UD(0, maxLoad)
 	loadSaddleUD     = common.UD(0, 1)
 	statusND         = common.ND(0, 1)
-
+	
 	diagnosticsFields = []common.LabeledDistributionMaker{
 		{
 			Label: labelFuelState,
@@ -76,7 +76,7 @@ func (m *DiagnosticsMeasurement) ToPoint(p *data.Point) {
 	p.SetMeasurementName(labelDiagnostics)
 	copy := m.Timestamp
 	p.SetTimestamp(&copy)
-
+	
 	p.AppendField(diagnosticsFields[0].Label, float64(m.Distributions[0].Get()))
 	p.AppendField(diagnosticsFields[1].Label, float64(m.Distributions[1].Get()))
 	p.AppendField(diagnosticsFields[2].Label, int64(m.Distributions[2].Get()))
@@ -85,7 +85,7 @@ func (m *DiagnosticsMeasurement) ToPoint(p *data.Point) {
 // NewDiagnosticsMeasurement creates a DiagnosticsMeasurement with start time.
 func NewDiagnosticsMeasurement(start time.Time) *DiagnosticsMeasurement {
 	sub := common.NewSubsystemMeasurementWithDistributionMakers(start, diagnosticsFields)
-
+	
 	return &DiagnosticsMeasurement{
 		SubsystemMeasurement: sub,
 	}

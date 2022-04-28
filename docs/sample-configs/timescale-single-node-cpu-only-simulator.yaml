@@ -1,9 +1,9 @@
 ################################################################################
 # This example configuration will simulate data on-the-fly so that data does
-# not have to be pre-created with `tsbs_generate_data`. 
+# not have to be pre-created with `generate_data`.
 #
 # See the documentation for each system for what configuration is available, 
-# typically found at: https://github.com/timescale/tsbs/tree/master/docs
+# typically found at: https://github.com/cnosdb/tsdb-comparisons/tree/master/docs
 # 
 # PLEASE NOTE: There are currently memory limitations that will reduce the ingest 
 # throughput, so if you are attempting to ingest the max speed of your system 

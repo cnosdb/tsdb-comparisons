@@ -12,8 +12,8 @@ GOFMT=$(GOCMD) fmt
 
 all: generators loaders runners
 
-generators: tsbs_generate_data \
-			tsbs_generate_queries
+generators: generate_data \
+			generate_queries
 
 loaders: tsbs_load \
 		 tsbs_load_influx \

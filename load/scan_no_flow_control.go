@@ -1,7 +1,7 @@
 package load
 
 import (
-	"github.com/timescale/tsbs/pkg/targets"
+	"github.com/cnosdb/tsdb-comparisons/pkg/targets"
 )
 
 // scanWithoutFlowControl reads data from the DataSource ds until a limit is reached (if -1, all items are read).
@@ -34,16 +34,16 @@ func scanWithoutFlowControl(
 			break
 		}
 		itemsRead++
-
+		
 		idx := indexer.GetIndex(item)
 		batches[idx].Append(item)
-
+		
 		if batches[idx].Len() >= batchSize {
 			channels[idx] <- batches[idx]
 			batches[idx] = factory.New()
 		}
 	}
-
+	
 	for idx, unfilledBatch := range batches {
 		if unfilledBatch.Len() > 0 {
 			channels[idx] <- unfilledBatch

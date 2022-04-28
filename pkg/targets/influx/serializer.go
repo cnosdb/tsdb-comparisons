@@ -1,8 +1,8 @@
 package influx
 
 import (
-	"github.com/timescale/tsbs/pkg/data"
-	"github.com/timescale/tsbs/pkg/data/serialize"
+	"github.com/cnosdb/tsdb-comparisons/pkg/data"
+	"github.com/cnosdb/tsdb-comparisons/pkg/data/serialize"
 	"io"
 )
 
@@ -20,7 +20,7 @@ type Serializer struct{}
 func (s *Serializer) Serialize(p *data.Point, w io.Writer) (err error) {
 	buf := make([]byte, 0, 1024)
 	buf = append(buf, p.MeasurementName()...)
-
+	
 	fakeTags := make([]int, 0)
 	tagKeys := p.TagKeys()
 	tagValues := p.TagValues()
@@ -52,7 +52,7 @@ func (s *Serializer) Serialize(p *data.Point, w io.Writer) (err error) {
 		firstFieldFormatted = true
 		buf = appendField(buf, tagKeys[tagIndex], tagValues[tagIndex])
 	}
-
+	
 	fieldValues := p.FieldValues()
 	for i := 0; i < len(fieldKeys); i++ {
 		value := fieldValues[i]
@@ -66,7 +66,7 @@ func (s *Serializer) Serialize(p *data.Point, w io.Writer) (err error) {
 		firstFieldFormatted = true
 		buf = appendField(buf, fieldKeys[i], value)
 	}
-
+	
 	// first field wasn't formatted, because all the fields were nil, InfluxDB will reject the insert
 	if !firstFieldFormatted {
 		return nil
@@ -75,16 +75,16 @@ func (s *Serializer) Serialize(p *data.Point, w io.Writer) (err error) {
 	buf = serialize.FastFormatAppend(p.Timestamp().UTC().UnixNano(), buf)
 	buf = append(buf, '\n')
 	_, err = w.Write(buf)
-
+	
 	return err
 }
 
 func appendField(buf, key []byte, v interface{}) []byte {
 	buf = append(buf, key...)
 	buf = append(buf, '=')
-
+	
 	buf = serialize.FastFormatAppend(v, buf)
-
+	
 	// Influx uses 'i' to indicate integers:
 	switch v.(type) {
 	case int, int64:
