@@ -1,21 +1,21 @@
 #!/bin/bash
 
 # Ensure loader is available
-EXE_FILE_NAME=${EXE_FILE_NAME:-$(which load_influx)}
+EXE_FILE_NAME=${EXE_FILE_NAME:-$(which load_cnosdb)}
 if [[ -z "$EXE_FILE_NAME" ]]; then
-    echo "load_influx not available. It is not specified explicitly and not found in \$PATH"
+    echo "load_cnosdb not available. It is not specified explicitly and not found in \$PATH"
     exit 1
 fi
 
 # Load parameters - common
-DATA_FILE_NAME=${DATA_FILE_NAME:-influx-data.gz}
+DATA_FILE_NAME=${DATA_FILE_NAME:-cnosdb-data.gz}
 DATABASE_PORT=${DATABASE_PORT:-8086}
 
 EXE_DIR=${EXE_DIR:-$(dirname $0)}
 source ${EXE_DIR}/load_common.sh
 
 until curl http://${DATABASE_HOST}:${DATABASE_PORT}/ping 2>/dev/null; do
-    echo "Waiting for InfluxDB"
+    echo "Waiting for CnosDB"
     sleep 1
 done
 

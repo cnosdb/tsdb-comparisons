@@ -1,9 +1,9 @@
 #!/bin/bash
 
 # Ensure runner is available
-EXE_FILE_NAME=${EXE_FILE_NAME:-$(which run_queries_influx)}
+EXE_FILE_NAME=${EXE_FILE_NAME:-$(which run_queries_cnosdb)}
 if [[ -z "$EXE_FILE_NAME" ]]; then
-    echo "run_queries_influx not available. It is not specified explicitly and not found in \$PATH"
+    echo "run_queries_cnosdb not available. It is not specified explicitly and not found in \$PATH"
     exit 1
 fi
 
@@ -56,7 +56,7 @@ if [ "$#" -gt 0 ]; then
     done
 else
     echo "Do not have any files specified - run from default queries folder as ${BULK_DATA_DIR}/queries_cnosdb*"
-    for FULL_DATA_FILE_NAME in "${BULK_DATA_DIR}/queries_influx"*; do
+    for FULL_DATA_FILE_NAME in "${BULK_DATA_DIR}/queries_cnosdb"*; do
         run_file $FULL_DATA_FILE_NAME
     done
 fi

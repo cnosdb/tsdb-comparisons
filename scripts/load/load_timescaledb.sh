@@ -3,7 +3,7 @@
 # Ensure loader is available
 EXE_FILE_NAME=${EXE_FILE_NAME:-$(which load_timescaledb)}
 if [[ -z "$EXE_FILE_NAME" ]]; then
-    echo "tsbs_load_timescaledb not available. It is not specified explicitly and not found in \$PATH"
+    echo "load_timescaledb not available. It is not specified explicitly and not found in \$PATH"
     exit 1
 fi
 
