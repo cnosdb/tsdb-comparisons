@@ -22,6 +22,7 @@ require (
 	github.com/spf13/afero v1.2.2 // indirect
 	github.com/spf13/cobra v1.0.0
 	github.com/spf13/pflag v1.0.5
+	github.com/taosdata/driver-go/v2 v2.0.1-0.20220324063052-903e5bdd86e5
 	github.com/tklauser/go-sysconf v0.3.5 // indirect
 	github.com/valyala/fasthttp v1.15.1
 	golang.org/x/crypto v0.0.0-20200820211705-5c72a883971a // indirect

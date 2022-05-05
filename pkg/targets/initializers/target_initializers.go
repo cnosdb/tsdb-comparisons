@@ -18,6 +18,8 @@ func GetTarget(format string) targets.ImplementedTarget {
 		return influx.NewTarget()
 	case constants.FormatCnosDB:
 		return cnosdb.NewTarget()
+	case constants.FormatTDengine:
+
 	}
 	supportedFormatsStr := strings.Join(constants.SupportedFormats(), ",")
 	panic(fmt.Sprintf("Unrecognized format %s, supported: %s", format, supportedFormatsStr))

@@ -5,6 +5,7 @@ const (
 	FormatInflux      = "influx"
 	FormatTimescaleDB = "timescaledb"
 	FormatCnosDB      = "cnosdb"
+	FormatTDengine    = "tdengine"
 )
 
 func SupportedFormats() []string {
@@ -12,5 +13,6 @@ func SupportedFormats() []string {
 		FormatInflux,
 		FormatTimescaleDB,
 		FormatCnosDB,
+		FormatInflux,
 	}
 }
