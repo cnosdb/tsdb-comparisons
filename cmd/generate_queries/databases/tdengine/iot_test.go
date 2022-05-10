@@ -1,12 +1,13 @@
 package tdengine
 
 import (
-	"fmt"
 	"math/rand"
-	"net/url"
 	"testing"
 	"time"
 
+	"github.com/andreyvit/diff"
+
+	"github.com/cnosdb/tsdb-comparisons/cmd/generate_queries/uses/iot"
 	"github.com/cnosdb/tsdb-comparisons/pkg/query"
 )
 
@@ -14,18 +15,20 @@ const (
 	testScale = 10
 )
 
-type IoTTestCase struct {
+type testCase struct {
 	desc               string
-	input              int
 	fail               bool
 	failMsg            string
+	input              int
+	useJSON            bool
 	expectedHumanLabel string
 	expectedHumanDesc  string
-	expectedQuery      string
+	expectedHypertable string
+	expectedSQLQuery   string
 }
 
 func TestLastLocByTruck(t *testing.T) {
-	cases := []IoTTestCase{
+	cases := []testCase{
 		{
 			desc:    "zero trucks",
 			input:   0,
@@ -42,53 +45,100 @@ func TestLastLocByTruck(t *testing.T) {
 			desc:  "one truck",
 			input: 1,
 
-			expectedHumanLabel: "cnosdb last location by specific truck",
-			expectedHumanDesc:  "cnosdb last location by specific truck: random    1 trucks",
-			expectedQuery: `SELECT "name", "driver", "latitude", "longitude" 
-		FROM "readings" 
-		WHERE ("name" = 'truck_5') 
-		ORDER BY "time" 
-		LIMIT 1`,
+			expectedHumanLabel: "TimescaleDB last location by specific truck",
+			expectedHumanDesc:  "TimescaleDB last location by specific truck: random    1 trucks",
+			expectedHypertable: "readings",
+			expectedSQLQuery: `SELECT t.name AS name, t.driver AS driver, r.*
+		FROM tags t INNER JOIN LATERAL
+			(SELECT longitude, latitude
+			FROM readings r
+			WHERE r.tags_id=t.id
+			ORDER BY time DESC LIMIT 1)  r ON true
+		WHERE t.name IN ('truck_5')`,
+		},
+		{
+			desc:    "one truck use json",
+			input:   1,
+			useJSON: true,
+
+			expectedHumanLabel: "TimescaleDB last location by specific truck",
+			expectedHumanDesc:  "TimescaleDB last location by specific truck: random    1 trucks",
+			expectedHypertable: "readings",
+			expectedSQLQuery: `SELECT t.tagset->>'name' AS name, t.tagset->>'driver' AS driver, r.*
+		FROM tags t INNER JOIN LATERAL
+			(SELECT longitude, latitude
+			FROM readings r
+			WHERE r.tags_id=t.id
+			ORDER BY time DESC LIMIT 1)  r ON true
+		WHERE t.tags_id IN (SELECT id FROM tags WHERE tagset @> '{"name": "truck_9"}')`,
 		},
 		{
 			desc:  "three truck",
 			input: 3,
 
-			expectedHumanLabel: "cnosdb last location by specific truck",
-			expectedHumanDesc:  "cnosdb last location by specific truck: random    3 trucks",
-			expectedQuery: `SELECT "name", "driver", "latitude", "longitude" 
-		FROM "readings" 
-		WHERE ("name" = 'truck_9' or "name" = 'truck_3' or "name" = 'truck_5') 
-		ORDER BY "time" 
-		LIMIT 1`,
+			expectedHumanLabel: "TimescaleDB last location by specific truck",
+			expectedHumanDesc:  "TimescaleDB last location by specific truck: random    3 trucks",
+			expectedHypertable: "readings",
+			expectedSQLQuery: `SELECT t.name AS name, t.driver AS driver, r.*
+		FROM tags t INNER JOIN LATERAL
+			(SELECT longitude, latitude
+			FROM readings r
+			WHERE r.tags_id=t.id
+			ORDER BY time DESC LIMIT 1)  r ON true
+		WHERE t.name IN ('truck_3','truck_5','truck_9')`,
 		},
 	}
 
-	testFunc := func(i *IoT, c IoTTestCase) query.Query {
+	testFunc := func(i *IoT, c testCase) query.Query {
 		q := i.GenerateEmptyQuery()
 		i.LastLocByTruck(q, c.input)
 		return q
 	}
 
-	runIoTTestCases(t, testFunc, time.Now(), time.Now(), cases)
+	runTestCases(t, testFunc, time.Now(), time.Now(), cases)
 }
 
 func TestLastLocPerTruck(t *testing.T) {
-	cases := []IoTTestCase{
+	cases := []testCase{
 		{
-			desc: "default",
+			desc: "default to using tags",
 
-			expectedHumanLabel: "cnosdb last location per truck",
-			expectedHumanDesc:  "cnosdb last location per truck",
-			expectedQuery: "/query?q=SELECT+%22latitude%22%2C+%22longitude%22+%0A%09%09" +
-				"FROM+%22readings%22+%0A%09%09WHERE+%22fleet%22%3D%27South%27+%0A%09%09" +
-				"GROUP+BY+%22name%22%2C%22driver%22+%0A%09%09ORDER+BY+%22time%22+%0A%09%09LIMIT+1",
+			expectedHumanLabel: "TimescaleDB last location per truck",
+			expectedHumanDesc:  "TimescaleDB last location per truck",
+			expectedHypertable: iot.ReadingsTableName,
+			expectedSQLQuery: `SELECT t.name AS name, t.driver AS driver, r.*
+		FROM tags t INNER JOIN LATERAL
+			(SELECT longitude, latitude
+			FROM readings r
+			WHERE r.tags_id=t.id
+			ORDER BY time DESC LIMIT 1)  r ON true
+		WHERE t.name IS NOT NULL
+		AND t.fleet = 'South'`,
+		},
+
+		{
+			desc: "use JSON",
+
+			useJSON:            true,
+			expectedHumanLabel: "TimescaleDB last location per truck",
+			expectedHumanDesc:  "TimescaleDB last location per truck",
+			expectedHypertable: iot.ReadingsTableName,
+			expectedSQLQuery: `SELECT t.tagset->>'name' AS name, t.tagset->>'driver' AS driver, r.*
+		FROM tags t INNER JOIN LATERAL
+			(SELECT longitude, latitude
+			FROM readings r
+			WHERE r.tags_id=t.id
+			ORDER BY time DESC LIMIT 1)  r ON true
+		WHERE t.tagset->>'name' IS NOT NULL
+		AND t.tagset->>'fleet' = 'South'`,
 		},
 	}
 
 	for _, c := range cases {
 		rand.Seed(123)
-		b := BaseGenerator{}
+		b := BaseGenerator{
+			UseJSON: c.useJSON,
+		}
 		ig, err := b.NewIoT(time.Now(), time.Now(), 10)
 		if err != nil {
 			t.Fatalf("Error while creating iot generator")
@@ -99,26 +149,53 @@ func TestLastLocPerTruck(t *testing.T) {
 		q := g.GenerateEmptyQuery()
 		g.LastLocPerTruck(q)
 
-		verifyQuery(t, q, c.expectedHumanLabel, c.expectedHumanDesc, c.expectedQuery)
+		verifyQuery(t, q, c.expectedHumanLabel, c.expectedHumanDesc, c.expectedHypertable, c.expectedSQLQuery)
 	}
 }
 
 func TestTrucksWithLowFuel(t *testing.T) {
-	cases := []IoTTestCase{
+	cases := []testCase{
 		{
-			desc: "default",
+			desc: "default to using tags",
 
-			expectedHumanLabel: "cnosdb trucks with low fuel",
-			expectedHumanDesc:  "cnosdb trucks with low fuel: under 10 percent",
-			expectedQuery: "/query?q=SELECT+%22name%22%2C+%22driver%22%2C+%22fuel_state%22+%0A%09%09" +
-				"FROM+%22diagnostics%22+%0A%09%09WHERE+%22fuel_state%22+%3C%3D+0.1+AND+%22fleet%22+%3D+%27South%27+%0A%09%09" +
-				"GROUP+BY+%22name%22+%0A%09%09ORDER+BY+%22time%22+DESC+%0A%09%09LIMIT+1",
+			expectedHumanLabel: "TimescaleDB trucks with low fuel",
+			expectedHumanDesc:  "TimescaleDB trucks with low fuel: under 10 percent",
+			expectedHypertable: iot.DiagnosticsTableName,
+			expectedSQLQuery: `SELECT t.name AS name, t.driver AS driver, d.* 
+		FROM tags t INNER JOIN LATERAL 
+			(SELECT fuel_state 
+			FROM diagnostics d 
+			WHERE d.tags_id=t.id 
+			ORDER BY time DESC LIMIT 1) d ON true 
+		WHERE t.name IS NOT NULL
+		AND d.fuel_state < 0.1 
+		AND t.fleet = 'South'`,
+		},
+
+		{
+			desc: "use JSON",
+
+			useJSON:            true,
+			expectedHumanLabel: "TimescaleDB trucks with low fuel",
+			expectedHumanDesc:  "TimescaleDB trucks with low fuel: under 10 percent",
+			expectedHypertable: iot.DiagnosticsTableName,
+			expectedSQLQuery: `SELECT t.tagset->>'name' AS name, t.tagset->>'driver' AS driver, d.* 
+		FROM tags t INNER JOIN LATERAL 
+			(SELECT fuel_state 
+			FROM diagnostics d 
+			WHERE d.tags_id=t.id 
+			ORDER BY time DESC LIMIT 1) d ON true 
+		WHERE t.tagset->>'name' IS NOT NULL
+		AND d.fuel_state < 0.1 
+		AND t.tagset->>'fleet' = 'South'`,
 		},
 	}
 
 	for _, c := range cases {
 		rand.Seed(123)
-		b := BaseGenerator{}
+		b := BaseGenerator{
+			UseJSON: c.useJSON,
+		}
 		ig, err := b.NewIoT(time.Now(), time.Now(), 10)
 		if err != nil {
 			t.Fatalf("Error while creating iot generator")
@@ -129,28 +206,53 @@ func TestTrucksWithLowFuel(t *testing.T) {
 		q := g.GenerateEmptyQuery()
 		g.TrucksWithLowFuel(q)
 
-		verifyQuery(t, q, c.expectedHumanLabel, c.expectedHumanDesc, c.expectedQuery)
+		verifyQuery(t, q, c.expectedHumanLabel, c.expectedHumanDesc, c.expectedHypertable, c.expectedSQLQuery)
 	}
 }
 
 func TestTrucksWithHighLoad(t *testing.T) {
-	cases := []IoTTestCase{
+	cases := []testCase{
 		{
-			desc: "default",
+			desc: "default to using tags",
 
-			expectedHumanLabel: "cnosdb trucks with high load",
-			expectedHumanDesc:  "cnosdb trucks with high load: over 90 percent",
-			expectedQuery: "/query?q=SELECT+%22name%22%2C+%22driver%22%2C+%22current_load%22%2C+%22load_capacity%22+%0A%09%09" +
-				"FROM+%28SELECT++%22current_load%22%2C+%22load_capacity%22+%0A%09%09+FROM+%22diagnostics%22+" +
-				"WHERE+fleet+%3D+%27South%27+%0A%09%09+GROUP+BY+%22name%22%2C%22driver%22+%0A%09%09+" +
-				"ORDER+BY+%22time%22+DESC+%0A%09%09+LIMIT+1%29+%0A%09%09WHERE+%22current_load%22+%3E%3D+0.9+%2A+%22load_capacity%22+%0A%09%09" +
-				"GROUP+BY+%22name%22+%0A%09%09ORDER+BY+%22time%22+DESC",
+			expectedHumanLabel: "TimescaleDB trucks with high load",
+			expectedHumanDesc:  "TimescaleDB trucks with high load: over 90 percent",
+			expectedHypertable: iot.DiagnosticsTableName,
+			expectedSQLQuery: `SELECT t.name AS name, t.driver AS driver, d.* 
+		FROM tags t INNER JOIN LATERAL 
+			(SELECT current_load 
+			FROM diagnostics d 
+			WHERE d.tags_id=t.id 
+			ORDER BY time DESC LIMIT 1) d ON true 
+		WHERE t.name IS NOT NULL
+		AND d.current_load/t.load_capacity > 0.9 
+		AND t.fleet = 'South'`,
+		},
+
+		{
+			desc: "use JSON",
+
+			useJSON:            true,
+			expectedHumanLabel: "TimescaleDB trucks with high load",
+			expectedHumanDesc:  "TimescaleDB trucks with high load: over 90 percent",
+			expectedHypertable: iot.DiagnosticsTableName,
+			expectedSQLQuery: `SELECT t.tagset->>'name' AS name, t.tagset->>'driver' AS driver, d.* 
+		FROM tags t INNER JOIN LATERAL 
+			(SELECT current_load 
+			FROM diagnostics d 
+			WHERE d.tags_id=t.id 
+			ORDER BY time DESC LIMIT 1) d ON true 
+		WHERE t.tagset->>'name' IS NOT NULL
+		AND d.current_load/t.tagset->>'load_capacity' > 0.9 
+		AND t.tagset->>'fleet' = 'South'`,
 		},
 	}
 
 	for _, c := range cases {
 		rand.Seed(123)
-		b := BaseGenerator{}
+		b := BaseGenerator{
+			UseJSON: c.useJSON,
+		}
 		ig, err := b.NewIoT(time.Now(), time.Now(), 10)
 		if err != nil {
 			t.Fatalf("Error while creating iot generator")
@@ -161,58 +263,110 @@ func TestTrucksWithHighLoad(t *testing.T) {
 		q := g.GenerateEmptyQuery()
 		g.TrucksWithHighLoad(q)
 
-		verifyQuery(t, q, c.expectedHumanLabel, c.expectedHumanDesc, c.expectedQuery)
+		verifyQuery(t, q, c.expectedHumanLabel, c.expectedHumanDesc, c.expectedHypertable, c.expectedSQLQuery)
 	}
 }
 
 func TestStationaryTrucks(t *testing.T) {
-	cases := []IoTTestCase{
+	cases := []testCase{
 		{
-			desc: "default",
+			desc: "default to using tags",
 
-			expectedHumanLabel: "cnosdb stationary trucks",
-			expectedHumanDesc:  "cnosdb stationary trucks: with low avg velocity in last 10 minutes",
+			expectedHumanLabel: "TimescaleDB stationary trucks",
+			expectedHumanDesc:  "TimescaleDB stationary trucks: with low avg velocity in last 10 minutes",
+			expectedHypertable: iot.ReadingsTableName,
+			expectedSQLQuery: `SELECT t.name AS name, t.driver AS driver
+		FROM tags t 
+		INNER JOIN readings r ON r.tags_id = t.id 
+		WHERE time >= '1970-01-01 00:36:22.646325 +0000' AND time < '1970-01-01 00:46:22.646325 +0000'
+		AND t.name IS NOT NULL
+		AND t.fleet = 'West' 
+		GROUP BY 1, 2 
+		HAVING avg(r.velocity) < 1`,
+		},
 
-			expectedQuery: "/query?q=SELECT+%22name%22%2C+%22driver%22+%0A%09%09FROM%28" +
-				"SELECT+mean%28%22velocity%22%29+as+mean_velocity+%0A%09%09+FROM+%22readings%22+%0A%09%09+" +
-				"WHERE+time+%3E+%271970-01-01T00%3A36%3A22Z%27+AND+time+%3C%3D+%271970-01-01T00%3A46%3A22Z%27+%0A%09%09+" +
-				"GROUP+BY+time%2810m%29%2C%22name%22%2C%22driver%22%2C%22fleet%22++%0A%09%09+" +
-				"LIMIT+1%29+%0A%09%09WHERE+%22fleet%22+%3D+%27West%27+AND+%22mean_velocity%22+%3C+1+%0A%09%09GROUP+BY+%22name%22",
+		{
+			desc: "use JSON",
+
+			useJSON:            true,
+			expectedHumanLabel: "TimescaleDB stationary trucks",
+			expectedHumanDesc:  "TimescaleDB stationary trucks: with low avg velocity in last 10 minutes",
+			expectedHypertable: iot.ReadingsTableName,
+			expectedSQLQuery: `SELECT t.tagset->>'name' AS name, t.tagset->>'driver' AS driver
+		FROM tags t 
+		INNER JOIN readings r ON r.tags_id = t.id 
+		WHERE time >= '1970-01-01 00:36:22.646325 +0000' AND time < '1970-01-01 00:46:22.646325 +0000'
+		AND t.tagset->>'name' IS NOT NULL
+		AND t.tagset->>'fleet' = 'West' 
+		GROUP BY 1, 2 
+		HAVING avg(r.velocity) < 1`,
 		},
 	}
 
 	for _, c := range cases {
-		b := &BaseGenerator{}
+		b := &BaseGenerator{
+			UseJSON: c.useJSON,
+		}
 		g := NewIoT(time.Unix(0, 0), time.Unix(0, 0).Add(time.Hour), 10, b)
 
 		q := g.GenerateEmptyQuery()
 		rand.Seed(123)
 		g.StationaryTrucks(q)
 
-		verifyQuery(t, q, c.expectedHumanLabel, c.expectedHumanDesc, c.expectedQuery)
+		verifyQuery(t, q, c.expectedHumanLabel, c.expectedHumanDesc, c.expectedHypertable, c.expectedSQLQuery)
 	}
 }
 
 func TestTrucksWithLongDrivingSessions(t *testing.T) {
-	cases := []IoTTestCase{
+	cases := []testCase{
 		{
-			desc: "default",
+			desc: "default to using tags",
 
-			expectedHumanLabel: "cnosdb trucks with longer driving sessions",
-			expectedHumanDesc:  "cnosdb trucks with longer driving sessions: stopped less than 20 mins in 4 hour period",
+			expectedHumanLabel: "TimescaleDB trucks with longer driving sessions",
+			expectedHumanDesc:  "TimescaleDB trucks with longer driving sessions: stopped less than 20 mins in 4 hour period",
+			expectedHypertable: iot.ReadingsTableName,
+			expectedSQLQuery: `SELECT t.name AS name, t.driver AS driver
+		FROM tags t 
+		INNER JOIN LATERAL 
+			(SELECT  time_bucket('10 minutes', time) AS ten_minutes, tags_id  
+			FROM readings 
+			WHERE time >= '1970-01-01 00:16:22.646325 +0000' AND time < '1970-01-01 04:16:22.646325 +0000'
+			GROUP BY ten_minutes, tags_id  
+			HAVING avg(velocity) > 1 
+			ORDER BY ten_minutes, tags_id) AS r ON t.id = r.tags_id 
+		WHERE t.name IS NOT NULL
+		AND t.fleet = 'West'
+		GROUP BY name, driver 
+		HAVING count(r.ten_minutes) > 22`,
+		},
 
-			expectedQuery: "/query?q=SELECT+%22name%22%2C%22driver%22+%0A%09%09FROM%28" +
-				"SELECT+count%28%2A%29+AS+ten_min+%0A%09%09+FROM%28SELECT+mean%28%22velocity%22%29+AS+mean_velocity+%0A%09%09++" +
-				"FROM+readings+%0A%09%09++" +
-				"WHERE+%22fleet%22+%3D+%27West%27+AND+time+%3E+%271970-01-01T00%3A16%3A22Z%27+AND+time+%3C%3D+%271970-01-01T04%3A16%3A22Z%27+%0A%09%09++" +
-				"GROUP+BY+time%2810m%29%2C%22name%22%2C%22driver%22%29+%0A%09%09+" +
-				"WHERE+%22mean_velocity%22+%3E+1+%0A%09%09+GROUP+BY+%22name%22%2C%22driver%22%29+%0A%09%09" +
-				"WHERE+ten_min_mean_velocity+%3E+22",
+		{
+			desc: "use JSON",
+
+			useJSON:            true,
+			expectedHumanLabel: "TimescaleDB trucks with longer driving sessions",
+			expectedHumanDesc:  "TimescaleDB trucks with longer driving sessions: stopped less than 20 mins in 4 hour period",
+			expectedHypertable: iot.ReadingsTableName,
+			expectedSQLQuery: `SELECT t.tagset->>'name' AS name, t.tagset->>'driver' AS driver
+		FROM tags t 
+		INNER JOIN LATERAL 
+			(SELECT  time_bucket('10 minutes', time) AS ten_minutes, tags_id  
+			FROM readings 
+			WHERE time >= '1970-01-01 00:16:22.646325 +0000' AND time < '1970-01-01 04:16:22.646325 +0000'
+			GROUP BY ten_minutes, tags_id  
+			HAVING avg(velocity) > 1 
+			ORDER BY ten_minutes, tags_id) AS r ON t.id = r.tags_id 
+		WHERE t.tagset->>'name' IS NOT NULL
+		AND t.tagset->>'fleet' = 'West'
+		GROUP BY name, driver 
+		HAVING count(r.ten_minutes) > 22`,
 		},
 	}
 
 	for _, c := range cases {
-		b := BaseGenerator{}
+		b := BaseGenerator{
+			UseJSON: c.useJSON,
+		}
 		ig, err := b.NewIoT(time.Unix(0, 0), time.Unix(0, 0).Add(6*time.Hour), 10)
 		if err != nil {
 			t.Fatalf("Error while creating iot generator")
@@ -224,30 +378,60 @@ func TestTrucksWithLongDrivingSessions(t *testing.T) {
 		rand.Seed(123)
 		g.TrucksWithLongDrivingSessions(q)
 
-		verifyQuery(t, q, c.expectedHumanLabel, c.expectedHumanDesc, c.expectedQuery)
+		verifyQuery(t, q, c.expectedHumanLabel, c.expectedHumanDesc, c.expectedHypertable, c.expectedSQLQuery)
 	}
 }
 
 func TestTrucksWithLongDailySessions(t *testing.T) {
-	cases := []IoTTestCase{
+	cases := []testCase{
 		{
-			desc: "default",
+			desc: "default to using tags",
 
-			expectedHumanLabel: "cnosdb trucks with longer daily sessions",
-			expectedHumanDesc:  "cnosdb trucks with longer daily sessions: drove more than 10 hours in the last 24 hours",
+			expectedHumanLabel: "TimescaleDB trucks with longer daily sessions",
+			expectedHumanDesc:  "TimescaleDB trucks with longer daily sessions: drove more than 10 hours in the last 24 hours",
+			expectedHypertable: iot.ReadingsTableName,
+			expectedSQLQuery: `SELECT t.name AS name, t.driver AS driver
+		FROM tags t 
+		INNER JOIN LATERAL 
+			(SELECT  time_bucket('10 minutes', time) AS ten_minutes, tags_id  
+			FROM readings 
+			WHERE time >= '1970-01-01 00:16:22.646325 +0000' AND time < '1970-01-02 00:16:22.646325 +0000'
+			GROUP BY ten_minutes, tags_id  
+			HAVING avg(velocity) > 1 
+			ORDER BY ten_minutes, tags_id) AS r ON t.id = r.tags_id 
+		WHERE t.name IS NOT NULL
+		AND t.fleet = 'West'
+		GROUP BY name, driver 
+		HAVING count(r.ten_minutes) > 60`,
+		},
 
-			expectedQuery: "/query?q=SELECT+%22name%22%2C%22driver%22+%0A%09%09" +
-				"FROM%28SELECT+count%28%2A%29+AS+ten_min+%0A%09%09+FROM%28" +
-				"SELECT+mean%28%22velocity%22%29+AS+mean_velocity+%0A%09%09++FROM+readings+%0A%09%09++" +
-				"WHERE+%22fleet%22+%3D+%27West%27+AND+time+%3E+%271970-01-01T00%3A16%3A22Z%27+AND+time+%3C%3D+%271970-01-02T00%3A16%3A22Z%27+%0A%09%09++" +
-				"GROUP+BY+time%2810m%29%2C%22name%22%2C%22driver%22%29+%0A%09%09+" +
-				"WHERE+%22mean_velocity%22+%3E+1+%0A%09%09+" +
-				"GROUP+BY+%22name%22%2C%22driver%22%29+%0A%09%09WHERE+ten_min_mean_velocity+%3E+60",
+		{
+			desc: "use JSON",
+
+			useJSON:            true,
+			expectedHumanLabel: "TimescaleDB trucks with longer daily sessions",
+			expectedHumanDesc:  "TimescaleDB trucks with longer daily sessions: drove more than 10 hours in the last 24 hours",
+			expectedHypertable: iot.ReadingsTableName,
+			expectedSQLQuery: `SELECT t.tagset->>'name' AS name, t.tagset->>'driver' AS driver
+		FROM tags t 
+		INNER JOIN LATERAL 
+			(SELECT  time_bucket('10 minutes', time) AS ten_minutes, tags_id  
+			FROM readings 
+			WHERE time >= '1970-01-01 00:16:22.646325 +0000' AND time < '1970-01-02 00:16:22.646325 +0000'
+			GROUP BY ten_minutes, tags_id  
+			HAVING avg(velocity) > 1 
+			ORDER BY ten_minutes, tags_id) AS r ON t.id = r.tags_id 
+		WHERE t.tagset->>'name' IS NOT NULL
+		AND t.tagset->>'fleet' = 'West'
+		GROUP BY name, driver 
+		HAVING count(r.ten_minutes) > 60`,
 		},
 	}
 
 	for _, c := range cases {
-		b := BaseGenerator{}
+		b := BaseGenerator{
+			UseJSON: c.useJSON,
+		}
 		ig, err := b.NewIoT(time.Unix(0, 0), time.Unix(0, 0).Add(25*time.Hour), 10)
 		if err != nil {
 			t.Fatalf("Error while creating iot generator")
@@ -259,25 +443,50 @@ func TestTrucksWithLongDailySessions(t *testing.T) {
 		rand.Seed(123)
 		g.TrucksWithLongDailySessions(q)
 
-		verifyQuery(t, q, c.expectedHumanLabel, c.expectedHumanDesc, c.expectedQuery)
+		verifyQuery(t, q, c.expectedHumanLabel, c.expectedHumanDesc, c.expectedHypertable, c.expectedSQLQuery)
 	}
 }
 
 func TestAvgVsProjectedFuelConsumption(t *testing.T) {
-	cases := []IoTTestCase{
+	cases := []testCase{
 		{
-			desc: "default",
+			desc: "default to using tags",
 
-			expectedHumanLabel: "cnosdb average vs projected fuel consumption per fleet",
-			expectedHumanDesc:  "cnosdb average vs projected fuel consumption per fleet",
+			expectedHumanLabel: "TimescaleDB average vs projected fuel consumption per fleet",
+			expectedHumanDesc:  "TimescaleDB average vs projected fuel consumption per fleet",
+			expectedHypertable: iot.ReadingsTableName,
+			expectedSQLQuery: `SELECT t.fleet AS fleet, avg(r.fuel_consumption) AS avg_fuel_consumption, 
+		avg(t.nominal_fuel_consumption) AS projected_fuel_consumption
+		FROM tags t
+		INNER JOIN LATERAL(SELECT tags_id, fuel_consumption FROM readings r WHERE r.tags_id = t.id AND velocity > 1) r ON true
+		WHERE t.fleet IS NOT NULL
+		AND t.nominal_fuel_consumption IS NOT NULL 
+		AND t.name IS NOT NULL
+		GROUP BY fleet`,
+		},
 
-			expectedQuery: "/query?q=SELECT+mean%28%22fuel_consumption%22%29+AS+%22mean_fuel_consumption%22%2C+mean%28%22nominal_fuel_consumption%22%29+AS+%22nominal_fuel_consumption%22+%0A%09%09" +
-				"FROM+%22readings%22+%0A%09%09WHERE+%22velocity%22+%3E+1+%0A%09%09GROUP+BY+%22fleet%22",
+		{
+			desc: "use JSON",
+
+			useJSON:            true,
+			expectedHumanLabel: "TimescaleDB average vs projected fuel consumption per fleet",
+			expectedHumanDesc:  "TimescaleDB average vs projected fuel consumption per fleet",
+			expectedHypertable: iot.ReadingsTableName,
+			expectedSQLQuery: `SELECT t.tagset->>'fleet' AS fleet, avg(r.fuel_consumption) AS avg_fuel_consumption, 
+		avg(t.tagset->>'nominal_fuel_consumption') AS projected_fuel_consumption
+		FROM tags t
+		INNER JOIN LATERAL(SELECT tags_id, fuel_consumption FROM readings r WHERE r.tags_id = t.id AND velocity > 1) r ON true
+		WHERE t.tagset->>'fleet' IS NOT NULL
+		AND t.tagset->>'nominal_fuel_consumption' IS NOT NULL 
+		AND t.tagset->>'name' IS NOT NULL
+		GROUP BY fleet`,
 		},
 	}
 
 	for _, c := range cases {
-		b := BaseGenerator{}
+		b := BaseGenerator{
+			UseJSON: c.useJSON,
+		}
 		ig, err := b.NewIoT(time.Unix(0, 0), time.Unix(0, 0).Add(25*time.Hour), 10)
 		if err != nil {
 			t.Fatalf("Error while creating iot generator")
@@ -289,29 +498,66 @@ func TestAvgVsProjectedFuelConsumption(t *testing.T) {
 		rand.Seed(123)
 		g.AvgVsProjectedFuelConsumption(q)
 
-		verifyQuery(t, q, c.expectedHumanLabel, c.expectedHumanDesc, c.expectedQuery)
+		verifyQuery(t, q, c.expectedHumanLabel, c.expectedHumanDesc, c.expectedHypertable, c.expectedSQLQuery)
 	}
 }
 
 func TestAvgDailyDrivingDuration(t *testing.T) {
-	cases := []IoTTestCase{
+	cases := []testCase{
 		{
-			desc: "default",
+			desc: "default to using tags",
 
-			expectedHumanLabel: "cnosdb average driver driving duration per day",
-			expectedHumanDesc:  "cnosdb average driver driving duration per day",
+			expectedHumanLabel: "TimescaleDB average driver driving duration per day",
+			expectedHumanDesc:  "TimescaleDB average driver driving duration per day",
+			expectedHypertable: iot.ReadingsTableName,
+			expectedSQLQuery: `WITH ten_minute_driving_sessions
+		AS (
+			SELECT time_bucket('10 minutes', TIME) AS ten_minutes, tags_id
+			FROM readings r
+			GROUP BY tags_id, ten_minutes
+			HAVING avg(velocity) > 1
+			), daily_total_session
+		AS (
+			SELECT time_bucket('24 hours', ten_minutes) AS day, tags_id, count(*) / 6 AS hours
+			FROM ten_minute_driving_sessions
+			GROUP BY day, tags_id
+			)
+		SELECT t.fleet AS fleet, t.name AS name, t.driver AS driver, avg(d.hours) AS avg_daily_hours
+		FROM daily_total_session d
+		INNER JOIN tags t ON t.id = d.tags_id
+		GROUP BY fleet, name, driver`,
+		},
 
-			expectedQuery: "/query?q=SELECT+count%28%22mv%22%29%2F6+as+%22hours+driven%22+%0A%09%09" +
-				"FROM+%28SELECT+mean%28%22velocity%22%29+as+%22mv%22+%0A%09%09+" +
-				"FROM+%22readings%22+%0A%09%09+WHERE+time+%3E+%271970-01-01T00%3A00%3A00Z%27+AND+time+%3C+%271970-01-02T01%3A00%3A00Z%27+%0A%09%09+" +
-				"GROUP+BY+time%2810m%29%2C%22fleet%22%2C+%22name%22%2C+%22driver%22%29+%0A%09%09" +
-				"WHERE+time+%3E+%271970-01-01T00%3A00%3A00Z%27+AND+time+%3C+%271970-01-02T01%3A00%3A00Z%27+%0A%09%09" +
-				"GROUP+BY+time%281d%29%2C%22fleet%22%2C+%22name%22%2C+%22driver%22",
+		{
+			desc: "use JSON",
+
+			useJSON:            true,
+			expectedHumanLabel: "TimescaleDB average driver driving duration per day",
+			expectedHumanDesc:  "TimescaleDB average driver driving duration per day",
+			expectedHypertable: iot.ReadingsTableName,
+			expectedSQLQuery: `WITH ten_minute_driving_sessions
+		AS (
+			SELECT time_bucket('10 minutes', TIME) AS ten_minutes, tags_id
+			FROM readings r
+			GROUP BY tags_id, ten_minutes
+			HAVING avg(velocity) > 1
+			), daily_total_session
+		AS (
+			SELECT time_bucket('24 hours', ten_minutes) AS day, tags_id, count(*) / 6 AS hours
+			FROM ten_minute_driving_sessions
+			GROUP BY day, tags_id
+			)
+		SELECT t.tagset->>'fleet' AS fleet, t.tagset->>'name' AS name, t.tagset->>'driver' AS driver, avg(d.hours) AS avg_daily_hours
+		FROM daily_total_session d
+		INNER JOIN tags t ON t.id = d.tags_id
+		GROUP BY fleet, name, driver`,
 		},
 	}
 
 	for _, c := range cases {
-		b := BaseGenerator{}
+		b := BaseGenerator{
+			UseJSON: c.useJSON,
+		}
 		ig, err := b.NewIoT(time.Unix(0, 0), time.Unix(0, 0).Add(25*time.Hour), 10)
 		if err != nil {
 			t.Fatalf("Error while creating iot generator")
@@ -323,36 +569,78 @@ func TestAvgDailyDrivingDuration(t *testing.T) {
 		rand.Seed(123)
 		g.AvgDailyDrivingDuration(q)
 
-		verifyQuery(t, q, c.expectedHumanLabel, c.expectedHumanDesc, c.expectedQuery)
+		verifyQuery(t, q, c.expectedHumanLabel, c.expectedHumanDesc, c.expectedHypertable, c.expectedSQLQuery)
 	}
 }
 
 func TestAvgDailyDrivingSession(t *testing.T) {
-	cases := []IoTTestCase{
+	cases := []testCase{
 		{
-			desc: "default",
+			desc: "default to using tags",
 
-			expectedHumanLabel: "cnosdb average driver driving session without stopping per day",
-			expectedHumanDesc:  "cnosdb average driver driving session without stopping per day",
+			expectedHumanLabel: "TimescaleDB average driver driving session without stopping per day",
+			expectedHumanDesc:  "TimescaleDB average driver driving session without stopping per day",
+			expectedHypertable: iot.ReadingsTableName,
+			expectedSQLQuery: `WITH driver_status
+		AS (
+			SELECT tags_id, time_bucket('10 mins', TIME) AS ten_minutes, avg(velocity) > 5 AS driving
+			FROM readings
+			GROUP BY tags_id, ten_minutes
+			ORDER BY tags_id, ten_minutes
+			), driver_status_change
+		AS (
+			SELECT tags_id, ten_minutes AS start, lead(ten_minutes) OVER (PARTITION BY tags_id ORDER BY ten_minutes) AS stop, driving
+			FROM (
+				SELECT tags_id, ten_minutes, driving, lag(driving) OVER (PARTITION BY tags_id ORDER BY ten_minutes) AS prev_driving
+				FROM driver_status
+				) x
+			WHERE x.driving <> x.prev_driving
+			)
+		SELECT t.name AS name, time_bucket('24 hours', start) AS day, avg(age(stop, start)) AS duration
+		FROM tags t
+		INNER JOIN driver_status_change d ON t.id = d.tags_id
+		WHERE t.name IS NOT NULL
+		AND d.driving = true
+		GROUP BY name, day
+		ORDER BY name, day`,
+		},
 
-			expectedQuery: "/query?q=SELECT+%22elapsed%22+%0A%09%09INTO+%22random_measure2_1%22+%0A%09%09FROM+%28" +
-				"SELECT+difference%28%22difka%22%29%2C+elapsed%28%22difka%22%2C+1m%29+%0A%09%09+" +
-				"FROM+%28SELECT+%22difka%22+%0A%09%09++FROM+%28SELECT+difference%28%22mv%22%29+AS+difka+%0A%09%09+++" +
-				"FROM+%28SELECT+floor%28mean%28%22velocity%22%29%2F10%29%2Ffloor%28mean%28%22velocity%22%29%2F10%29+AS+%22mv%22+%0A%09%09++++" +
-				"FROM+%22readings%22+%0A%09%09++++" +
-				"WHERE+%22name%22%21%3D%27%27+AND+time+%3E+%271970-01-01T00%3A00%3A00Z%27+AND+time+%3C+%271970-01-02T01%3A00%3A00Z%27+%0A%09%09++++" +
-				"GROUP+BY+time%2810m%29%2C+%22name%22+fill%280%29%29+%0A%09%09+++" +
-				"GROUP+BY+%22name%22%29+%0A%09%09++WHERE+%22difka%22%21%3D0+%0A%09%09++" +
-				"GROUP+BY+%22name%22%29+%0A%09%09+GROUP+BY+%22name%22%29+%0A%09%09" +
-				"WHERE+%22difference%22+%3D+-2+%0A%09%09GROUP+BY+%22name%22%3B+%0A%09%09" +
-				"SELECT+mean%28%22elapsed%22%29+%0A%09%09FROM+%22random_measure2_1%22+%0A%09%09" +
-				"WHERE+time+%3E+%271970-01-01T00%3A00%3A00Z%27+AND+time+%3C+%271970-01-02T01%3A00%3A00Z%27+%0A%09%09" +
-				"GROUP+BY+time%281d%29%2C%22name%22",
+		{
+			desc: "use JSON",
+
+			useJSON:            true,
+			expectedHumanLabel: "TimescaleDB average driver driving session without stopping per day",
+			expectedHumanDesc:  "TimescaleDB average driver driving session without stopping per day",
+			expectedHypertable: iot.ReadingsTableName,
+			expectedSQLQuery: `WITH driver_status
+		AS (
+			SELECT tags_id, time_bucket('10 mins', TIME) AS ten_minutes, avg(velocity) > 5 AS driving
+			FROM readings
+			GROUP BY tags_id, ten_minutes
+			ORDER BY tags_id, ten_minutes
+			), driver_status_change
+		AS (
+			SELECT tags_id, ten_minutes AS start, lead(ten_minutes) OVER (PARTITION BY tags_id ORDER BY ten_minutes) AS stop, driving
+			FROM (
+				SELECT tags_id, ten_minutes, driving, lag(driving) OVER (PARTITION BY tags_id ORDER BY ten_minutes) AS prev_driving
+				FROM driver_status
+				) x
+			WHERE x.driving <> x.prev_driving
+			)
+		SELECT t.tagset->>'name' AS name, time_bucket('24 hours', start) AS day, avg(age(stop, start)) AS duration
+		FROM tags t
+		INNER JOIN driver_status_change d ON t.id = d.tags_id
+		WHERE t.tagset->>'name' IS NOT NULL
+		AND d.driving = true
+		GROUP BY name, day
+		ORDER BY name, day`,
 		},
 	}
 
 	for _, c := range cases {
-		b := BaseGenerator{}
+		b := BaseGenerator{
+			UseJSON: c.useJSON,
+		}
 		ig, err := b.NewIoT(time.Unix(0, 0), time.Unix(0, 0).Add(25*time.Hour), 10)
 		if err != nil {
 			t.Fatalf("Error while creating iot generator")
@@ -364,27 +652,52 @@ func TestAvgDailyDrivingSession(t *testing.T) {
 		rand.Seed(123)
 		g.AvgDailyDrivingSession(q)
 
-		verifyQuery(t, q, c.expectedHumanLabel, c.expectedHumanDesc, c.expectedQuery)
+		verifyQuery(t, q, c.expectedHumanLabel, c.expectedHumanDesc, c.expectedHypertable, c.expectedSQLQuery)
 	}
 }
 
 func TestAvgLoad(t *testing.T) {
-	cases := []IoTTestCase{
+	cases := []testCase{
 		{
-			desc: "default",
+			desc: "default to using tags",
 
-			expectedHumanLabel: "cnosdb average load per truck model per fleet",
-			expectedHumanDesc:  "cnosdb average load per truck model per fleet",
+			expectedHumanLabel: "TimescaleDB average load per truck model per fleet",
+			expectedHumanDesc:  "TimescaleDB average load per truck model per fleet",
+			expectedHypertable: iot.ReadingsTableName,
+			expectedSQLQuery: `SELECT t.fleet AS fleet, t.model AS model, t.load_capacity AS load_capacity, avg(d.avg_load / t.load_capacity) AS avg_load_percentage
+		FROM tags t
+		INNER JOIN (
+			SELECT tags_id, avg(current_load) AS avg_load
+			FROM diagnostics d
+			GROUP BY tags_id
+			) d ON t.id = d.tags_id
+		WHERE t.name IS NOT NULL
+		GROUP BY fleet, model, load_capacity`,
+		},
 
-			expectedQuery: "/query?q=SELECT+mean%28%22ml%22%29+AS+mean_load_percentage+%0A%09%09" +
-				"FROM+%28SELECT+%22current_load%22%2F%22load_capacity%22+AS+%22ml%22+%0A%09%09+" +
-				"FROM+%22diagnostics%22+%0A%09%09+GROUP+BY+%22name%22%2C+%22fleet%22%2C+%22model%22%29+%0A%09%09" +
-				"GROUP+BY+%22fleet%22%2C+%22model%22",
+		{
+			desc: "use JSON",
+
+			useJSON:            true,
+			expectedHumanLabel: "TimescaleDB average load per truck model per fleet",
+			expectedHumanDesc:  "TimescaleDB average load per truck model per fleet",
+			expectedHypertable: iot.ReadingsTableName,
+			expectedSQLQuery: `SELECT t.tagset->>'fleet' AS fleet, t.tagset->>'model' AS model, t.tagset->>'load_capacity' AS load_capacity, avg(d.avg_load / t.tagset->>'load_capacity') AS avg_load_percentage
+		FROM tags t
+		INNER JOIN (
+			SELECT tags_id, avg(current_load) AS avg_load
+			FROM diagnostics d
+			GROUP BY tags_id
+			) d ON t.id = d.tags_id
+		WHERE t.tagset->>'name' IS NOT NULL
+		GROUP BY fleet, model, load_capacity`,
 		},
 	}
 
 	for _, c := range cases {
-		b := BaseGenerator{}
+		b := BaseGenerator{
+			UseJSON: c.useJSON,
+		}
 		ig, err := b.NewIoT(time.Unix(0, 0), time.Unix(0, 0).Add(25*time.Hour), 10)
 		if err != nil {
 			t.Fatalf("Error while creating iot generator")
@@ -396,29 +709,56 @@ func TestAvgLoad(t *testing.T) {
 		rand.Seed(123)
 		g.AvgLoad(q)
 
-		verifyQuery(t, q, c.expectedHumanLabel, c.expectedHumanDesc, c.expectedQuery)
+		verifyQuery(t, q, c.expectedHumanLabel, c.expectedHumanDesc, c.expectedHypertable, c.expectedSQLQuery)
 	}
 }
 
 func TestDailyTruckActivity(t *testing.T) {
-	cases := []IoTTestCase{
+	cases := []testCase{
 		{
-			desc: "default",
+			desc: "default to using tags",
 
-			expectedHumanLabel: "cnosdb daily truck activity per fleet per model",
-			expectedHumanDesc:  "cnosdb daily truck activity per fleet per model",
+			expectedHumanLabel: "TimescaleDB daily truck activity per fleet per model",
+			expectedHumanDesc:  "TimescaleDB daily truck activity per fleet per model",
+			expectedHypertable: iot.ReadingsTableName,
+			expectedSQLQuery: `SELECT t.fleet AS fleet, t.model AS model, y.day, sum(y.ten_mins_per_day) / 144 AS daily_activity
+		FROM tags t
+		INNER JOIN (
+			SELECT time_bucket('24 hours', TIME) AS day, time_bucket('10 minutes', TIME) AS ten_minutes, tags_id, count(*) AS ten_mins_per_day
+			FROM diagnostics
+			GROUP BY day, ten_minutes, tags_id
+			HAVING avg(STATUS) < 1
+			) y ON y.tags_id = t.id
+		WHERE t.name IS NOT NULL
+		GROUP BY fleet, model, y.day
+		ORDER BY y.day`,
+		},
 
-			expectedQuery: "/query?q=SELECT+count%28%22ms%22%29%2F144+%0A%09%09FROM+%28" +
-				"SELECT+mean%28%22status%22%29+AS+ms+%0A%09%09+FROM+%22diagnostics%22+%0A%09%09+" +
-				"WHERE+time+%3E%3D+%271970-01-01T00%3A00%3A00Z%27+AND+time+%3C+%271970-01-02T01%3A00%3A00Z%27+%0A%09%09+" +
-				"GROUP+BY+time%2810m%29%2C+%22model%22%2C+%22fleet%22%29+%0A%09%09" +
-				"WHERE+time+%3E%3D+%271970-01-01T00%3A00%3A00Z%27+AND+time+%3C+%271970-01-02T01%3A00%3A00Z%27+AND+%22ms%22%3C1+%0A%09%09" +
-				"GROUP+BY+time%281d%29%2C+%22model%22%2C+%22fleet%22",
+		{
+			desc: "use JSON",
+
+			useJSON:            true,
+			expectedHumanLabel: "TimescaleDB daily truck activity per fleet per model",
+			expectedHumanDesc:  "TimescaleDB daily truck activity per fleet per model",
+			expectedHypertable: iot.ReadingsTableName,
+			expectedSQLQuery: `SELECT t.tagset->>'fleet' AS fleet, t.tagset->>'model' AS model, y.day, sum(y.ten_mins_per_day) / 144 AS daily_activity
+		FROM tags t
+		INNER JOIN (
+			SELECT time_bucket('24 hours', TIME) AS day, time_bucket('10 minutes', TIME) AS ten_minutes, tags_id, count(*) AS ten_mins_per_day
+			FROM diagnostics
+			GROUP BY day, ten_minutes, tags_id
+			HAVING avg(STATUS) < 1
+			) y ON y.tags_id = t.id
+		WHERE t.tagset->>'name' IS NOT NULL
+		GROUP BY fleet, model, y.day
+		ORDER BY y.day`,
 		},
 	}
 
 	for _, c := range cases {
-		b := BaseGenerator{}
+		b := BaseGenerator{
+			UseJSON: c.useJSON,
+		}
 		ig, err := b.NewIoT(time.Unix(0, 0), time.Unix(0, 0).Add(25*time.Hour), 10)
 		if err != nil {
 			t.Fatalf("Error while creating iot generator")
@@ -430,32 +770,70 @@ func TestDailyTruckActivity(t *testing.T) {
 		rand.Seed(123)
 		g.DailyTruckActivity(q)
 
-		verifyQuery(t, q, c.expectedHumanLabel, c.expectedHumanDesc, c.expectedQuery)
+		verifyQuery(t, q, c.expectedHumanLabel, c.expectedHumanDesc, c.expectedHypertable, c.expectedSQLQuery)
 	}
 }
 
 func TestTruckBreakdownFrequency(t *testing.T) {
-	cases := []IoTTestCase{
+	cases := []testCase{
 		{
-			desc: "default",
+			desc: "default to using tags",
 
-			expectedHumanLabel: "cnosdb truck breakdown frequency per model",
-			expectedHumanDesc:  "cnosdb truck breakdown frequency per model",
+			expectedHumanLabel: "TimescaleDB truck breakdown frequency per model",
+			expectedHumanDesc:  "TimescaleDB truck breakdown frequency per model",
+			expectedHypertable: iot.DiagnosticsTableName,
+			expectedSQLQuery: `WITH breakdown_per_truck_per_ten_minutes
+		AS (
+			SELECT time_bucket('10 minutes', TIME) AS ten_minutes, tags_id, count(STATUS = 0) / count(*) >= 0.5 AS broken_down
+			FROM diagnostics
+			GROUP BY ten_minutes, tags_id
+			), breakdowns_per_truck
+		AS (
+			SELECT ten_minutes, tags_id, broken_down, lead(broken_down) OVER (
+					PARTITION BY tags_id ORDER BY ten_minutes
+					) AS next_broken_down
+			FROM breakdown_per_truck_per_ten_minutes
+			)
+		SELECT t.model AS model, count(*)
+		FROM tags t
+		INNER JOIN breakdowns_per_truck b ON t.id = b.tags_id
+		WHERE t.name IS NOT NULL
+		AND broken_down = false AND next_broken_down = true
+		GROUP BY model`,
+		},
 
-			expectedQuery: "/query?q=SELECT+count%28%22state_changed%22%29+%0A%09%09" +
-				"FROM+%28SELECT+difference%28%22broken_down%22%29+AS+%22state_changed%22+%0A%09%09+" +
-				"FROM+%28SELECT+floor%282%2A%28sum%28%22nzs%22%29%2Fcount%28%22nzs%22%29%29%29%2Ffloor%282%2A%28sum%28%22nzs%22%29%2Fcount%28%22nzs%22%29%29%29+AS+%22broken_down%22+%0A%09%09++" +
-				"FROM+%28SELECT+%22model%22%2C+%22status%22%2F%22status%22+AS+nzs+%0A%09%09+++" +
-				"FROM+%22diagnostics%22+%0A%09%09+++" +
-				"WHERE+time+%3E%3D+%271970-01-01T00%3A00%3A00Z%27+AND+time+%3C+%271970-01-02T01%3A00%3A00Z%27%29+%0A%09%09++" +
-				"WHERE+time+%3E%3D+%271970-01-01T00%3A00%3A00Z%27+AND+time+%3C+%271970-01-02T01%3A00%3A00Z%27+%0A%09%09++" +
-				"GROUP+BY+time%2810m%29%2C%22model%22%29+%0A%09%09+GROUP+BY+%22model%22%29+%0A%09%09" +
-				"WHERE+%22state_changed%22+%3D+1+%0A%09%09GROUP+BY+%22model%22",
+		{
+			desc: "use JSON",
+
+			useJSON:            true,
+			expectedHumanLabel: "TimescaleDB truck breakdown frequency per model",
+			expectedHumanDesc:  "TimescaleDB truck breakdown frequency per model",
+			expectedHypertable: iot.DiagnosticsTableName,
+			expectedSQLQuery: `WITH breakdown_per_truck_per_ten_minutes
+		AS (
+			SELECT time_bucket('10 minutes', TIME) AS ten_minutes, tags_id, count(STATUS = 0) / count(*) >= 0.5 AS broken_down
+			FROM diagnostics
+			GROUP BY ten_minutes, tags_id
+			), breakdowns_per_truck
+		AS (
+			SELECT ten_minutes, tags_id, broken_down, lead(broken_down) OVER (
+					PARTITION BY tags_id ORDER BY ten_minutes
+					) AS next_broken_down
+			FROM breakdown_per_truck_per_ten_minutes
+			)
+		SELECT t.tagset->>'model' AS model, count(*)
+		FROM tags t
+		INNER JOIN breakdowns_per_truck b ON t.id = b.tags_id
+		WHERE t.tagset->>'name' IS NOT NULL
+		AND broken_down = false AND next_broken_down = true
+		GROUP BY model`,
 		},
 	}
 
 	for _, c := range cases {
-		b := BaseGenerator{}
+		b := BaseGenerator{
+			UseJSON: c.useJSON,
+		}
 		ig, err := b.NewIoT(time.Unix(0, 0), time.Unix(0, 0).Add(25*time.Hour), 10)
 		if err != nil {
 			t.Fatalf("Error while creating iot generator")
@@ -467,7 +845,7 @@ func TestTruckBreakdownFrequency(t *testing.T) {
 		rand.Seed(123)
 		g.TruckBreakdownFrequency(q)
 
-		verifyQuery(t, q, c.expectedHumanLabel, c.expectedHumanDesc, c.expectedQuery)
+		verifyQuery(t, q, c.expectedHumanLabel, c.expectedHumanDesc, c.expectedHypertable, c.expectedSQLQuery)
 	}
 }
 
@@ -517,12 +895,13 @@ func TestTenMinutePeriods(t *testing.T) {
 
 }
 
-func runIoTTestCases(t *testing.T, testFunc func(*IoT, IoTTestCase) query.Query, s time.Time, e time.Time, cases []IoTTestCase) {
+func runTestCases(t *testing.T, testFunc func(*IoT, testCase) query.Query, s time.Time, e time.Time, cases []testCase) {
 	rand.Seed(123) // Setting seed for testing purposes.
 
 	for _, c := range cases {
 		t.Run(c.desc, func(t *testing.T) {
 			b := BaseGenerator{}
+			b.UseJSON = c.useJSON
 			dq, err := b.NewIoT(s, e, testScale)
 			if err != nil {
 				t.Fatalf("Error while creating devops generator")
@@ -547,39 +926,31 @@ func runIoTTestCases(t *testing.T, testFunc func(*IoT, IoTTestCase) query.Query,
 			} else {
 				q := testFunc(i, c)
 
-				v := url.Values{}
-				v.Set("q", c.expectedQuery)
-				expectedPath := fmt.Sprintf("/query?%s", v.Encode())
-
-				verifyQuery(t, q, c.expectedHumanLabel, c.expectedHumanDesc, expectedPath)
+				verifyQuery(t, q, c.expectedHumanLabel, c.expectedHumanDesc, c.expectedHypertable, c.expectedSQLQuery)
 			}
 		})
 	}
 }
-func verifyQuery(t *testing.T, q query.Query, humanLabel, humanDesc, path string) {
-	cnosql, ok := q.(*query.HTTP)
+func verifyQuery(t *testing.T, q query.Query, humanLabel, humanDesc, hypertable, sqlQuery string) {
+	tsq, ok := q.(*query.TimescaleDB)
 
 	if !ok {
-		t.Fatal("Filled query is not *query.HTTP type")
+		t.Fatal("Filled query is not *query.TimescaleDB type")
 	}
 
-	if got := string(cnosql.HumanLabel); got != humanLabel {
+	if got := string(tsq.HumanLabel); got != humanLabel {
 		t.Errorf("incorrect human label:\ngot\n%s\nwant\n%s", got, humanLabel)
 	}
 
-	if got := string(cnosql.HumanDescription); got != humanDesc {
+	if got := string(tsq.HumanDescription); got != humanDesc {
 		t.Errorf("incorrect human description:\ngot\n%s\nwant\n%s", got, humanDesc)
 	}
 
-	if got := string(cnosql.Method); got != "POST" {
-		t.Errorf("incorrect method:\ngot\n%s\nwant POST", got)
+	if got := string(tsq.Hypertable); got != hypertable {
+		t.Errorf("incorrect hypertable:\ngot\n%s\nwant\n%s", got, hypertable)
 	}
 
-	if got := string(cnosql.Path); got != path {
-		t.Errorf("incorrect path:\ngot\n%s\nwant\n%s", got, path)
-	}
-
-	if cnosql.Body != nil {
-		t.Errorf("body not nil, got %+v", cnosql.Body)
+	if got := string(tsq.SqlQuery); got != sqlQuery {
+		t.Errorf("incorrect SQL query:\ndiff\n%s\ngot\n%s\nwant\n%s", diff.CharacterDiff(got, sqlQuery), got, sqlQuery)
 	}
 }

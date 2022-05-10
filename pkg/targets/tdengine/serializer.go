@@ -1,96 +1,52 @@
 package tdengine
 
 import (
+	"fmt"
 	"io"
 
 	"github.com/cnosdb/tsdb-comparisons/pkg/data"
 	"github.com/cnosdb/tsdb-comparisons/pkg/data/serialize"
 )
 
-// Serializer writes a Point in a serialized form for MongoDB
+// Serializer writes a Point in a serialized form for TimescaleDB
 type Serializer struct{}
 
-// Serialize writes Point data to the given writer, conforming to the
-// CnosDBwire protocol.
+// Serialize writes Point p to the given Writer w, so it can be
+// loaded by the TimescaleDB loader. The format is CSV with two lines per Point,
+// with the first row being the tags and the second row being the field values.
 //
-// This function writes output that looks like:
-// <measurement>,<tag key>=<tag value> <field name>=<field value> <timestamp>\n
-//
-// For example:
-// foo,tag0=bar baz=-1.0 100\n
-func (s *Serializer) Serialize(p *data.Point, w io.Writer) (err error) {
-	buf := make([]byte, 0, 1024)
-	buf = append(buf, p.MeasurementName()...)
-
-	fakeTags := make([]int, 0)
+// e.g.,
+// tags,<tag1>,<tag2>,<tag3>,...
+// <measurement>,<timestamp>,<field1>,<field2>,<field3>,...
+func (s *Serializer) Serialize(p *data.Point, w io.Writer) error {
+	// Tag row first, prefixed with name 'tags'
+	buf := make([]byte, 0, 256)
+	buf = append(buf, []byte("tags")...)
 	tagKeys := p.TagKeys()
 	tagValues := p.TagValues()
-	for i := 0; i < len(tagKeys); i++ {
-		if tagValues[i] == nil {
-			continue
-		}
-		switch v := tagValues[i].(type) {
-		case string:
-			buf = append(buf, ',')
-			buf = append(buf, tagKeys[i]...)
-			buf = append(buf, '=')
-			buf = append(buf, []byte(v)...)
-		default:
-			fakeTags = append(fakeTags, i)
-		}
+	for i, v := range tagValues {
+		buf = append(buf, ',')
+		buf = append(buf, tagKeys[i]...)
+		buf = append(buf, '=')
+		buf = serialize.FastFormatAppend(v, buf)
 	}
-	fieldKeys := p.FieldKeys()
-	if len(fakeTags) > 0 || len(fieldKeys) > 0 {
-		buf = append(buf, ' ')
-	}
-	firstFieldFormatted := false
-	for i := 0; i < len(fakeTags); i++ {
-		tagIndex := fakeTags[i]
-		// don't append a comma before the first field
-		if firstFieldFormatted {
-			buf = append(buf, ',')
-		}
-		firstFieldFormatted = true
-		buf = appendField(buf, tagKeys[tagIndex], tagValues[tagIndex])
+	buf = append(buf, '\n')
+	_, err := w.Write(buf)
+	if err != nil {
+		return err
 	}
 
+	// Field row second
+	buf = make([]byte, 0, 256)
+	buf = append(buf, p.MeasurementName()...)
+	buf = append(buf, ',')
+	buf = append(buf, []byte(fmt.Sprintf("%d", p.Timestamp().UTC().UnixNano()))...)
 	fieldValues := p.FieldValues()
-	for i := 0; i < len(fieldKeys); i++ {
-		value := fieldValues[i]
-		if value == nil {
-			continue
-		}
-		// don't append a comma before the first field
-		if firstFieldFormatted {
-			buf = append(buf, ',')
-		}
-		firstFieldFormatted = true
-		buf = appendField(buf, fieldKeys[i], value)
+	for _, v := range fieldValues {
+		buf = append(buf, ',')
+		buf = serialize.FastFormatAppend(v, buf)
 	}
-
-	// first field wasn't formatted, because all the fields were nil, CnosDBwill reject the insert
-	if !firstFieldFormatted {
-		return nil
-	}
-	buf = append(buf, ' ')
-	buf = serialize.FastFormatAppend(p.Timestamp().UTC().UnixNano(), buf)
 	buf = append(buf, '\n')
 	_, err = w.Write(buf)
-
 	return err
-}
-
-func appendField(buf, key []byte, v interface{}) []byte {
-	buf = append(buf, key...)
-	buf = append(buf, '=')
-
-	buf = serialize.FastFormatAppend(v, buf)
-
-	// Influx uses 'i' to indicate integers:
-	switch v.(type) {
-	case int, int64:
-		buf = append(buf, 'i')
-	}
-
-	return buf
 }
