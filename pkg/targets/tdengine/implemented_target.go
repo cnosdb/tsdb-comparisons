@@ -12,21 +12,21 @@ import (
 )
 
 func NewTarget() targets.ImplementedTarget {
-	return &timescaleTarget{}
+	return &tdengineTarget{}
 }
 
-type timescaleTarget struct {
+type tdengineTarget struct {
 }
 
-func (t *timescaleTarget) TargetName() string {
-	return constants.FormatTimescaleDB
+func (t *tdengineTarget) TargetName() string {
+	return constants.FormatTDEngine
 }
 
-func (t *timescaleTarget) Serializer() serialize.PointSerializer {
+func (t *tdengineTarget) Serializer() serialize.PointSerializer {
 	return &Serializer{}
 }
 
-func (t *timescaleTarget) Benchmark(
+func (t *tdengineTarget) Benchmark(
 	targetDB string, dataSourceConfig *source.DataSourceConfig, v *viper.Viper,
 ) (targets.Benchmark, error) {
 	var loadingOptions LoadingOptions
@@ -36,7 +36,7 @@ func (t *timescaleTarget) Benchmark(
 	return NewBenchmark(targetDB, &loadingOptions, dataSourceConfig)
 }
 
-func (t *timescaleTarget) TargetSpecificFlags(flagPrefix string, flagSet *pflag.FlagSet) {
+func (t *tdengineTarget) TargetSpecificFlags(flagPrefix string, flagSet *pflag.FlagSet) {
 	flagSet.String(flagPrefix+"postgres", "sslmode=disable", "PostgreSQL connection string")
 	flagSet.String(flagPrefix+"host", "localhost", "Hostname of TimescaleDB (PostgreSQL) instance")
 	flagSet.String(flagPrefix+"port", "5432", "Which port to connect to on the database host")
