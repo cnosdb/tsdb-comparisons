@@ -13,6 +13,6 @@ func SupportedFormats() []string {
 		FormatInflux,
 		FormatTimescaleDB,
 		FormatCnosDB,
-		FormatCnosDB,
+		FormatTDEngine,
 	}
 }
