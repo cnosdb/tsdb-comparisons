@@ -7,7 +7,7 @@ import (
 	"math/rand"
 	"os"
 	"sort"
-	
+
 	"github.com/cnosdb/tsdb-comparisons/pkg/data"
 	"github.com/cnosdb/tsdb-comparisons/pkg/data/serialize"
 	"github.com/cnosdb/tsdb-comparisons/pkg/data/usecases"
@@ -30,9 +30,9 @@ type DataGenerator struct {
 	// os.Stdout unless File is specified in the GeneratorConfig passed to
 	// Generate.
 	Out io.Writer
-	
+
 	config *common.DataGeneratorConfig
-	
+
 	// bufOut represents the buffered writer that should actually be passed to
 	// any operations that write out data.
 	bufOut *bufio.Writer
@@ -48,12 +48,12 @@ func (g *DataGenerator) init(config common.GeneratorConfig) error {
 		return fmt.Errorf(ErrInvalidDataConfig)
 	}
 	g.config = config.(*common.DataGeneratorConfig)
-	
+
 	err := g.config.Validate()
 	if err != nil {
 		return err
 	}
-	
+
 	if g.Out == nil {
 		g.Out = os.Stdout
 	}
@@ -61,7 +61,7 @@ func (g *DataGenerator) init(config common.GeneratorConfig) error {
 	if err != nil {
 		return err
 	}
-	
+
 	return nil
 }
 
@@ -70,20 +70,20 @@ func (g *DataGenerator) Generate(config common.GeneratorConfig, target targets.I
 	if err != nil {
 		return err
 	}
-	
+
 	rand.Seed(g.config.Seed)
-	
+
 	scfg, err := usecases.GetSimulatorConfig(g.config)
 	if err != nil {
 		return err
 	}
-	
+
 	sim := scfg.NewSimulator(g.config.LogInterval, g.config.Limit)
 	serializer, err := g.getSerializer(sim, target)
 	if err != nil {
 		return err
 	}
-	
+
 	return g.runSimulator(sim, serializer, g.config)
 }
 
@@ -97,13 +97,13 @@ func (g *DataGenerator) CreateSimulator(config *common.DataGeneratorConfig) (com
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return scfg.NewSimulator(g.config.LogInterval, g.config.Limit), nil
 }
 
 func (g *DataGenerator) runSimulator(sim common.Simulator, serializer serialize.PointSerializer, dgc *common.DataGeneratorConfig) error {
 	defer g.bufOut.Flush()
-	
+
 	currGroupID := uint(0)
 	point := data.NewPoint()
 	for !sim.Finished() {
@@ -112,7 +112,7 @@ func (g *DataGenerator) runSimulator(sim common.Simulator, serializer serialize.
 			point.Reset()
 			continue
 		}
-		
+
 		// in the default case this is always true
 		if currGroupID == dgc.InterleavedGroupID {
 			err := serializer.Serialize(point, g.bufOut)
@@ -121,7 +121,7 @@ func (g *DataGenerator) runSimulator(sim common.Simulator, serializer serialize.
 			}
 		}
 		point.Reset()
-		
+
 		currGroupID = (currGroupID + 1) % dgc.InterleavedNumGroups
 	}
 	return nil
@@ -131,6 +131,9 @@ func (g *DataGenerator) getSerializer(sim common.Simulator, target targets.Imple
 	switch target.TargetName() {
 	case constants.FormatTimescaleDB:
 		g.writeHeader(sim.Headers())
+
+	case constants.FormatTDEngine:
+		g.writeHeader(sim.Headers())
 	}
 	return target.Serializer(), nil
 }
@@ -138,7 +141,7 @@ func (g *DataGenerator) getSerializer(sim common.Simulator, target targets.Imple
 // TODO should be implemented in targets package
 func (g *DataGenerator) writeHeader(headers *common.GeneratedDataHeaders) {
 	g.bufOut.WriteString("tags")
-	
+
 	types := headers.TagTypes
 	for i, key := range headers.TagKeys {
 		g.bufOut.WriteString(",")

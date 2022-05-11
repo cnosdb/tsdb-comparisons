@@ -113,3 +113,18 @@ func (d *fileDataSource) NextItem() data.LoadedPoint {
 		row:        newPoint,
 	})
 }
+
+func extractTagNamesAndTypes(tags []string) ([]string, []string) {
+	tagNames := make([]string, len(tags))
+	tagTypes := make([]string, len(tags))
+	for i, tagWithType := range tags {
+		tagAndType := strings.Split(tagWithType, " ")
+		if len(tagAndType) != 2 {
+			panic("tag header has invalid format")
+		}
+		tagNames[i] = tagAndType[0]
+		tagTypes[i] = tagAndType[1]
+	}
+
+	return tagNames, tagTypes
+}

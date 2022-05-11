@@ -6,9 +6,6 @@ import (
 	"github.com/cnosdb/tsdb-comparisons/pkg/targets"
 )
 
-const pgxDriver = "pgx"
-const pqDriver = "postgres"
-
 func NewBenchmark(dbName string, opts *LoadingOptions, dataSourceConfig *source.DataSourceConfig) (targets.Benchmark, error) {
 	var ds targets.DataSource
 	if dataSourceConfig.Type == source.FileDataSourceType {
@@ -51,7 +48,7 @@ func (b *benchmark) GetPointIndexer(maxPartitions uint) targets.PointIndexer {
 }
 
 func (b *benchmark) GetProcessor() targets.Processor {
-	return newProcessor(b.opts, getDriver(b.opts.ForceTextFormat), b.dbName)
+	return newProcessor(b.opts, b.dbName)
 }
 
 func (b *benchmark) GetDBCreator() targets.DBCreator {
@@ -59,15 +56,6 @@ func (b *benchmark) GetDBCreator() targets.DBCreator {
 		opts:    b.opts,
 		connDB:  b.opts.ConnDB,
 		ds:      b.ds,
-		driver:  getDriver(b.opts.ForceTextFormat),
-		connStr: b.opts.GetConnectString(b.dbName),
-	}
-}
-
-func getDriver(forceTextFormat bool) string {
-	if forceTextFormat {
-		return pqDriver
-	} else {
-		return pgxDriver
+		httpurl: b.opts.HttpURL(),
 	}
 }

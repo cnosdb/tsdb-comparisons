@@ -39,7 +39,7 @@ func initProgramOptions() (*tdengine.LoadingOptions, load.BenchmarkRunner, *load
 	opts.Port = viper.GetString("port")
 	opts.User = viper.GetString("user")
 	opts.Pass = viper.GetString("pass")
-	opts.ConnDB = viper.GetString("admin-db-name")
+	opts.ConnDB = viper.GetString("db-name")
 	opts.LogBatches = viper.GetBool("log-batches")
 
 	opts.UseHypertable = viper.GetBool("use-hypertable")
@@ -86,11 +86,6 @@ func main() {
 	}
 
 	var replicationStatsWaitGroup sync.WaitGroup
-	if len(opts.ReplicationStatsFile) > 0 {
-		go OutputReplicationStats(
-			opts.GetConnectString(loader.DatabaseName()), opts.ReplicationStatsFile, &replicationStatsWaitGroup,
-		)
-	}
 
 	benchmark, err := tdengine.NewBenchmark(loaderConf.DBName, opts, &source.DataSourceConfig{
 		Type: source.FileDataSourceType,
