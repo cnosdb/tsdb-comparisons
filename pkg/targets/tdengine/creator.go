@@ -30,9 +30,7 @@ type LoadingOptions struct {
 	ConnDB     string `yaml:"admin-db-name" mapstructure:"admin-db-name"`
 	LogBatches bool   `yaml:"log-batches" mapstructure:"log-batches"`
 
-	ProfileFile          string `yaml:"write-profile" mapstructure:"write-profile"`
-	ReplicationStatsFile string `yaml:"write-replication-stats" mapstructure:"write-replication-stats"`
-
+	ProfileFile    string   `yaml:"write-profile" mapstructure:"write-profile"`
 	TagColumnTypes []string `yaml:",omitempty" mapstructure:",omitempty"`
 }
 
@@ -140,7 +138,7 @@ func httpClientExecSQL(client *http.Client, url, sqlcmd, usr, pw string) error {
 		return err
 	}
 
-	fmt.Printf("URL: %s ### SQL: %s\n\n", url, sqlcmd)
+	// fmt.Printf("URL: %s ### SQL: %s\n\n", url, sqlcmd)
 
 	defer resp.Body.Close()
 

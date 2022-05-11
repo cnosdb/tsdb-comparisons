@@ -10,14 +10,14 @@ import (
 	"github.com/cnosdb/tsdb-comparisons/pkg/targets"
 )
 
-func newFileDataSource(fileName string) targets.DataSource {
-	br := load.GetBufferedReader(fileName)
-	return &fileDataSource{scanner: bufio.NewScanner(br)}
-}
-
 type fileDataSource struct {
 	scanner *bufio.Scanner
 	headers *common.GeneratedDataHeaders
+}
+
+func newFileDataSource(fileName string) targets.DataSource {
+	br := load.GetBufferedReader(fileName)
+	return &fileDataSource{scanner: bufio.NewScanner(br)}
 }
 
 func (d *fileDataSource) Headers() *common.GeneratedDataHeaders {

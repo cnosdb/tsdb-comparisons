@@ -5,7 +5,6 @@ package main
 
 import (
 	"fmt"
-	"sync"
 
 	"github.com/blagojts/viper"
 	"github.com/cnosdb/tsdb-comparisons/internal/utils"
@@ -40,9 +39,7 @@ func initProgramOptions() (*tdengine.LoadingOptions, load.BenchmarkRunner, *load
 	opts.Pass = viper.GetString("pass")
 	opts.ConnDB = viper.GetString("db-name")
 	opts.LogBatches = viper.GetBool("log-batches")
-
-	//opts.ProfileFile = viper.GetString("write-profile")
-	opts.ReplicationStatsFile = viper.GetString("write-replication-stats")
+	opts.ProfileFile = viper.GetString("write-profile")
 
 	loader := load.GetBenchmarkRunner(loaderConf)
 	return &opts, loader, &loaderConf
@@ -56,8 +53,6 @@ func main() {
 		go profileCPUAndMem(opts.ProfileFile)
 	}
 
-	var replicationStatsWaitGroup sync.WaitGroup
-
 	benchmark, err := tdengine.NewBenchmark(loaderConf.DBName, opts, &source.DataSourceConfig{
 		Type: source.FileDataSourceType,
 		File: &source.FileDataSourceConfig{Location: loaderConf.FileName},
@@ -67,8 +62,4 @@ func main() {
 	}
 
 	loader.RunBenchmark(benchmark)
-
-	if len(opts.ReplicationStatsFile) > 0 {
-		replicationStatsWaitGroup.Wait()
-	}
 }

@@ -9,11 +9,11 @@ import (
 	"github.com/spf13/pflag"
 )
 
-func NewTarget() targets.ImplementedTarget {
-	return &tdengineTarget{}
+type tdengineTarget struct {
 }
 
-type tdengineTarget struct {
+func NewTarget() targets.ImplementedTarget {
+	return &tdengineTarget{}
 }
 
 func (t *tdengineTarget) TargetName() string {
@@ -35,7 +35,7 @@ func (t *tdengineTarget) Benchmark(
 }
 
 func (t *tdengineTarget) TargetSpecificFlags(flagPrefix string, flagSet *pflag.FlagSet) {
-	flagSet.String(flagPrefix+"host", "localhost", "Hostname of TimescaleDB (tdengine) instance")
+	flagSet.String(flagPrefix+"host", "127.0.0.1", "Hostname of TimescaleDB (tdengine) instance")
 	flagSet.String(flagPrefix+"port", "6041", "Which port to connect to on the database host")
 	flagSet.String(flagPrefix+"user", "root", "User to connect to tdengine as")
 	flagSet.String(flagPrefix+"pass", "taosdata", "Password for user connecting to tdengine")

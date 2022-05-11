@@ -6,6 +6,13 @@ import (
 	"github.com/cnosdb/tsdb-comparisons/pkg/targets"
 )
 
+type benchmark struct {
+	opts *LoadingOptions
+	ds   targets.DataSource
+
+	dbName string
+}
+
 func NewBenchmark(dbName string, opts *LoadingOptions, dataSourceConfig *source.DataSourceConfig) (targets.Benchmark, error) {
 	var ds targets.DataSource
 	if dataSourceConfig.Type == source.FileDataSourceType {
@@ -24,12 +31,6 @@ func NewBenchmark(dbName string, opts *LoadingOptions, dataSourceConfig *source.
 		ds:     ds,
 		dbName: dbName,
 	}, nil
-}
-
-type benchmark struct {
-	opts   *LoadingOptions
-	ds     targets.DataSource
-	dbName string
 }
 
 func (b *benchmark) GetDataSource() targets.DataSource {

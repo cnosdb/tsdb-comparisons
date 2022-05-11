@@ -9,16 +9,16 @@ import (
 	"github.com/cnosdb/tsdb-comparisons/pkg/targets"
 )
 
+type simulationDataSource struct {
+	simulator common.Simulator
+	headers   *common.GeneratedDataHeaders
+}
+
 func newSimulationDataSource(sim common.Simulator) targets.DataSource {
 	return &simulationDataSource{
 		simulator: sim,
 		headers:   sim.Headers(),
 	}
-}
-
-type simulationDataSource struct {
-	simulator common.Simulator
-	headers   *common.GeneratedDataHeaders
 }
 
 func (d *simulationDataSource) Headers() *common.GeneratedDataHeaders {
