@@ -5,7 +5,6 @@ import (
 	"log"
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/cnosdb/tsdb-comparisons/pkg/targets"
 
@@ -24,36 +23,17 @@ var fatal = log.Fatalf
 var tableCols = make(map[string][]string)
 
 type LoadingOptions struct {
-	PostgresConnect string `yaml:"postgres" mapstructure:"postgres"`
-	Host            string `yaml:"host"`
-	User            string
-	Pass            string
-	Port            string
-	ConnDB          string `yaml:"admin-db-name" mapstructure:"admin-db-name"`
-
-	UseHypertable bool `yaml:"use-hypertable" mapstructure:"use-hypertable"`
-	LogBatches    bool `yaml:"log-batches" mapstructure:"log-batches"`
-	UseJSON       bool `yaml:"use-jsonb-tags" mapstructure:"use-jsonb-tags"`
-	InTableTag    bool `yaml:"in-table-partition-tag" mapstructure:"in-table-partition-tag"`
-
-	NumberPartitions  int           `yaml:"partitions" mapstructure:"partitions"`
-	PartitionColumn   string        `yaml:"partition-column" mapstructure:"partition-column"`
-	ReplicationFactor int           `yaml:"replication-factor" mapstructure:"replication-factor"`
-	ChunkTime         time.Duration `yaml:"chunk-time" mapstructure:"chunk-time"`
-
-	TimeIndex          bool   `yaml:"time-index" mapstructure:"time-index"`
-	TimePartitionIndex bool   `yaml:"time-partition-index" mapstructure:"time-partition-index"`
-	PartitionIndex     bool   `yaml:"partition-index" mapstructure:"partition-index"`
-	FieldIndex         string `yaml:"field-index" mapstructure:"field-index"`
-	FieldIndexCount    int    `yaml:"field-index-count" mapstructure:"field-index-count"`
+	Host       string `yaml:"host"`
+	User       string
+	Pass       string
+	Port       string
+	ConnDB     string `yaml:"admin-db-name" mapstructure:"admin-db-name"`
+	LogBatches bool   `yaml:"log-batches" mapstructure:"log-batches"`
 
 	ProfileFile          string `yaml:"write-profile" mapstructure:"write-profile"`
 	ReplicationStatsFile string `yaml:"write-replication-stats" mapstructure:"write-replication-stats"`
 
-	CreateMetricsTable bool     `yaml:"create-metrics-table" mapstructure:"create-metrics-table"`
-	ForceTextFormat    bool     `yaml:"force-text-format" mapstructure:"force-text-format"`
-	TagColumnTypes     []string `yaml:",omitempty" mapstructure:",omitempty"`
-	UseInsert          bool     `yaml:"use-insert" mapstructure:"use-insert"`
+	TagColumnTypes []string `yaml:",omitempty" mapstructure:",omitempty"`
 }
 
 func (opts *LoadingOptions) HttpURL() string {
@@ -61,10 +41,11 @@ func (opts *LoadingOptions) HttpURL() string {
 }
 
 type dbCreator struct {
-	ds      targets.DataSource
+	ds   targets.DataSource
+	opts *LoadingOptions
+
 	httpurl string
 	connDB  string
-	opts    *LoadingOptions
 }
 
 func (d *dbCreator) Init() {
@@ -78,7 +59,7 @@ func (d *dbCreator) DBExists(dbName string) bool {
 func (d *dbCreator) RemoveOldDB(dbName string) error {
 	client := &http.Client{}
 
-	httpClientExecSQL(client, d.httpurl, "DROP DATABASE "+dbName)
+	httpClientExecSQL(client, d.httpurl, "DROP DATABASE "+dbName, d.opts.User, d.opts.Pass)
 
 	return nil
 }
@@ -86,7 +67,7 @@ func (d *dbCreator) RemoveOldDB(dbName string) error {
 func (d *dbCreator) CreateDB(dbName string) error {
 	client := &http.Client{}
 
-	httpClientExecSQL(client, d.httpurl, "CREATE DATABASE "+dbName)
+	httpClientExecSQL(client, d.httpurl, "CREATE DATABASE "+dbName, d.opts.User, d.opts.Pass)
 
 	return nil
 }
@@ -106,11 +87,11 @@ func (d *dbCreator) PostCreateDB(dbName string) error {
 		// tableCols is a global map. Globally cache the available columns for the given table
 		tableCols[tableName] = columns
 
-		httpClientExecSQL(client, d.httpurl, fmt.Sprintf("DROP TABLE IF EXISTS %s", tableName))
+		httpClientExecSQL(client, d.httpurl, "DROP TABLE IF EXISTS "+tableName, d.opts.User, d.opts.Pass)
 
 		createSql := fmt.Sprintf("CREATE STABLE %s (ts TIMESTAMP, %s) TAGS (%s)",
 			tableName, generateFieldsStr(columns), generateTagsStr(tagNames, tagTypes))
-		httpClientExecSQL(client, d.httpurl, createSql)
+		httpClientExecSQL(client, d.httpurl, createSql, d.opts.User, d.opts.Pass)
 
 	}
 	return nil
@@ -148,10 +129,10 @@ func serializedTypeToPgType(serializedType string) string {
 	}
 }
 
-func httpClientExecSQL(client *http.Client, url, sqlcmd string) error {
+func httpClientExecSQL(client *http.Client, url, sqlcmd, usr, pw string) error {
 	body := strings.NewReader(sqlcmd)
 	req, _ := http.NewRequest("POST", url, body)
-	req.SetBasicAuth("root", "taosdata")
+	req.SetBasicAuth(usr, pw)
 	resp, err := client.Do(req)
 
 	if err != nil {

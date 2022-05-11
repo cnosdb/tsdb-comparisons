@@ -84,7 +84,7 @@ func (p *processor) processCSI(hypertable string, rows []*insertData) uint64 {
 	for i, str := range tagVals {
 		sql := fmt.Sprintf("INSERT INTO %s USING %s TAGS (%s) VALUES (%s)", "t_"+md5Str(str), hypertable, str, dataRows[i])
 
-		httpClientExecSQL(p.client, p.httpurl, sql)
+		httpClientExecSQL(p.client, p.httpurl, sql, p.opts.User, p.opts.Pass)
 	}
 
 	return numMetrics
