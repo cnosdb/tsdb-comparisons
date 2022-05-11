@@ -54,9 +54,9 @@ func (b *benchmark) GetProcessor() targets.Processor {
 
 func (b *benchmark) GetDBCreator() targets.DBCreator {
 	return &dbCreator{
+		ds:      b.ds,
 		opts:    b.opts,
 		connDB:  b.opts.ConnDB,
-		ds:      b.ds,
 		httpurl: b.opts.HttpURL(),
 	}
 }

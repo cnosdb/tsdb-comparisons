@@ -12,9 +12,7 @@ import (
 )
 
 const (
-	tagsKey      = "tags"
-	TimeValueIdx = "TIME-VALUE"
-	ValueTimeIdx = "VALUE-TIME"
+	tagsKey = "tags"
 )
 
 // allows for testing
