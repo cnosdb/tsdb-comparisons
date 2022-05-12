@@ -135,7 +135,7 @@ func (b *BenchmarkRunner) GetBufferedReader() *bufio.Reader {
 }
 
 // Run does the bulk of the benchmark execution.
-// It launches a gorountine to track stats, creates workers to process queries,
+// It launches a goroutine to track stats, creates workers to process queries,
 // read in the input, execute the queries, and then does cleanup.
 func (b *BenchmarkRunner) Run(queryPool *sync.Pool, processorCreateFn ProcessorCreate) {
 	if b.Workers == 0 {

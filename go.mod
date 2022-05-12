@@ -19,9 +19,11 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/sergi/go-diff v1.0.0 // indirect
 	github.com/shirou/gopsutil v3.21.3+incompatible
+	github.com/sirupsen/logrus v1.8.1 // indirect
 	github.com/spf13/afero v1.2.2 // indirect
 	github.com/spf13/cobra v1.0.0
 	github.com/spf13/pflag v1.0.5
+	github.com/taosdata/driver-go/v2 v2.0.1 // indirect
 	github.com/tklauser/go-sysconf v0.3.5 // indirect
 	github.com/valyala/fasthttp v1.15.1
 	golang.org/x/crypto v0.0.0-20200820211705-5c72a883971a // indirect

@@ -5,429 +5,313 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cnosdb/tsdb-comparisons/cmd/generate_queries/databases"
 	"github.com/cnosdb/tsdb-comparisons/cmd/generate_queries/uses/iot"
 	"github.com/cnosdb/tsdb-comparisons/pkg/query"
 )
 
-const (
-	iotReadingsTable = "readings"
-)
-
-// IoT produces TimescaleDB-specific queries for all the iot query types.
+// IoT produces TDengine-specific queries for all the iot query types.
 type IoT struct {
 	*iot.Core
 	*BaseGenerator
 }
 
-func panicIfErr(err error) {
-	if err != nil {
-		panic(err.Error())
-	}
-}
-
 // NewIoT makes an IoT object ready to generate Queries.
 func NewIoT(start, end time.Time, scale int, g *BaseGenerator) *IoT {
 	c, err := iot.NewCore(start, end, scale)
-	panicIfErr(err)
+	databases.PanicIfErr(err)
 	return &IoT{
 		Core:          c,
 		BaseGenerator: g,
 	}
 }
 
-func (i *IoT) columnSelect(column string) string {
-	if i.UseJSON {
-		return fmt.Sprintf("tagset->>'%[1]s'", column)
-	}
-
-	return column
-}
-
-func (i *IoT) withAlias(column string) string {
-	return fmt.Sprintf("%s AS %s", i.columnSelect(column), column)
-}
-
-func (i *IoT) getTrucksWhereWithNames(names []string) string {
-	nameClauses := []string{}
-	if i.UseJSON {
-		for _, s := range names {
-			nameClauses = append(nameClauses, fmt.Sprintf("tagset @> '{\"name\": \"%s\"}'", s))
-		}
-		return fmt.Sprintf("tags_id IN (SELECT id FROM tags WHERE %s)", strings.Join(nameClauses, " OR "))
-	}
-
-	for _, s := range names {
-		nameClauses = append(nameClauses, fmt.Sprintf("'%s'", s))
-	}
-	return fmt.Sprintf("name IN (%s)", strings.Join(nameClauses, ","))
-}
-
-// getHostWhereString gets multiple random hostnames and creates a WHERE SQL statement for these hostnames.
 func (i *IoT) getTruckWhereString(nTrucks int) string {
 	names, err := i.GetRandomTrucks(nTrucks)
-	panicIfErr(err)
-	return i.getTrucksWhereWithNames(names)
+	if err != nil {
+		panic(err.Error())
+	}
+	for j := range names {
+		names[j] = fmt.Sprintf(`"%s"`, names[j])
+	}
+	return fmt.Sprintf("name in (%s)", strings.Join(names, " ,"))
 }
 
 // LastLocByTruck finds the truck location for nTrucks.
 func (i *IoT) LastLocByTruck(qi query.Query, nTrucks int) {
-	name, driver := "name", "driver"
-
-	sql := fmt.Sprintf(`SELECT t.%s, t.%s, r.*
-		FROM tags t INNER JOIN LATERAL
-			(SELECT longitude, latitude
-			FROM readings r
-			WHERE r.tags_id=t.id
-			ORDER BY time DESC LIMIT 1)  r ON true
-		WHERE t.%s`,
-		i.withAlias(name),
-		i.withAlias(driver),
+	sql := fmt.Sprintf(`SELECT name, driver, latitude, longitude 
+		FROM readings 
+		WHERE %s 
+		ORDER BY ts 
+		LIMIT 1`,
 		i.getTruckWhereString(nTrucks))
 
-	humanLabel := "TimescaleDB last location by specific truck"
+	humanLabel := "TDengine last location by specific truck"
 	humanDesc := fmt.Sprintf("%s: random %4d trucks", humanLabel, nTrucks)
 
-	i.fillInQuery(qi, humanLabel, humanDesc, iot.ReadingsTableName, sql)
+	i.fillInQuery(qi, humanLabel, humanDesc, sql)
 }
 
 // LastLocPerTruck finds all the truck locations along with truck and driver names.
 func (i *IoT) LastLocPerTruck(qi query.Query) {
-	name, driver, fleet := "name", "driver", "fleet"
 
-	sql := fmt.Sprintf(`SELECT t.%s, t.%s, r.*
-		FROM tags t INNER JOIN LATERAL
-			(SELECT longitude, latitude
-			FROM readings r
-			WHERE r.tags_id=t.id
-			ORDER BY time DESC LIMIT 1)  r ON true
-		WHERE t.%s IS NOT NULL
-		AND t.%s = '%s'`,
-		i.withAlias(name),
-		i.withAlias(driver),
-		i.columnSelect(name),
-		i.columnSelect(fleet),
+	sql := fmt.Sprintf(`SELECT latitude, longitude 
+		FROM readings 
+		WHERE fleet='%s' 
+		GROUP BY name,driver 
+		ORDER BY ts 
+		LIMIT 1`,
 		i.GetRandomFleet())
 
-	humanLabel := "TimescaleDB last location per truck"
+	humanLabel := "TDengine last location per truck"
 	humanDesc := humanLabel
 
-	i.fillInQuery(qi, humanLabel, humanDesc, iot.ReadingsTableName, sql)
+	i.fillInQuery(qi, humanLabel, humanDesc, sql)
 }
 
 // TrucksWithLowFuel finds all trucks with low fuel (less than 10%).
 func (i *IoT) TrucksWithLowFuel(qi query.Query) {
-	name, driver, fleet := "name", "driver", "fleet"
-
-	sql := fmt.Sprintf(`SELECT t.%s, t.%s, d.* 
-		FROM tags t INNER JOIN LATERAL 
-			(SELECT fuel_state 
-			FROM diagnostics d 
-			WHERE d.tags_id=t.id 
-			ORDER BY time DESC LIMIT 1) d ON true 
-		WHERE t.%s IS NOT NULL
-		AND d.fuel_state < 0.1 
-		AND t.%s = '%s'`,
-		i.withAlias(name),
-		i.withAlias(driver),
-		i.columnSelect(name),
-		i.columnSelect(fleet),
+	sql := fmt.Sprintf(`SELECT name, driver, fuel_state 
+		FROM diagnostics 
+		WHERE fuel_state <= 0.1 AND fleet = '%s'
+		ORDER BY ts DESC 
+		LIMIT 1`,
 		i.GetRandomFleet())
 
-	humanLabel := "TimescaleDB trucks with low fuel"
+	humanLabel := "TDengine trucks with low fuel"
 	humanDesc := fmt.Sprintf("%s: under 10 percent", humanLabel)
 
-	i.fillInQuery(qi, humanLabel, humanDesc, iot.DiagnosticsTableName, sql)
+	i.fillInQuery(qi, humanLabel, humanDesc, sql)
 }
 
 // TrucksWithHighLoad finds all trucks that have load over 90%.
 func (i *IoT) TrucksWithHighLoad(qi query.Query) {
-	name, driver, fleet, load := "name", "driver", "fleet", "load_capacity"
-
-	sql := fmt.Sprintf(`SELECT t.%s, t.%s, d.* 
-		FROM tags t INNER JOIN LATERAL 
-			(SELECT current_load 
-			FROM diagnostics d 
-			WHERE d.tags_id=t.id 
-			ORDER BY time DESC LIMIT 1) d ON true 
-		WHERE t.%s IS NOT NULL
-		AND d.current_load/t.%s > 0.9 
-		AND t.%s = '%s'`,
-		i.withAlias(name),
-		i.withAlias(driver),
-		i.columnSelect(name),
-		i.columnSelect(load),
-		i.columnSelect(fleet),
+	sql := fmt.Sprintf(`SELECT ts, name, driver, current_load, load_capacity 
+		FROM (SELECT ts,name,driver, current_load, load_capacity 
+		 FROM diagnostics WHERE fleet = '%s'
+		 ORDER BY ts DESC 
+		 LIMIT 1) 
+		WHERE current_load >= 0.9 * load_capacity
+		ORDER BY ts DESC`,
 		i.GetRandomFleet())
 
-	humanLabel := "TimescaleDB trucks with high load"
+	humanLabel := "TDengine trucks with high load"
 	humanDesc := fmt.Sprintf("%s: over 90 percent", humanLabel)
 
-	i.fillInQuery(qi, humanLabel, humanDesc, iot.DiagnosticsTableName, sql)
+	i.fillInQuery(qi, humanLabel, humanDesc, sql)
 }
 
 // StationaryTrucks finds all trucks that have low average velocity in a time window.
 func (i *IoT) StationaryTrucks(qi query.Query) {
-	name, driver, fleet := "name", "driver", "fleet"
-
 	interval := i.Interval.MustRandWindow(iot.StationaryDuration)
-	sql := fmt.Sprintf(`SELECT t.%s, t.%s
-		FROM tags t 
-		INNER JOIN readings r ON r.tags_id = t.id 
-		WHERE time >= '%s' AND time < '%s'
-		AND t.%s IS NOT NULL
-		AND t.%s = '%s' 
-		GROUP BY 1, 2 
-		HAVING avg(r.velocity) < 1`,
-		i.withAlias(name),
-		i.withAlias(driver),
-		interval.Start().Format(goTimeFmt),
-		interval.End().Format(goTimeFmt),
-		i.columnSelect(name),
-		i.columnSelect(fleet),
+	sql := fmt.Sprintf(`SELECT name, driver 
+		FROM(SELECT avg(velocity) as mean_velocity 
+		 FROM readings 
+		 WHERE ts > '%s' AND ts <= '%s' 
+	     INTERVAL(10m)
+		 GROUP BY name,driver,fleet  
+		 LIMIT 1) 
+		WHERE fleet = '%s' AND mean_velocity < 1 
+		GROUP BY name`,
+		interval.Start().Format(time.RFC3339),
+		interval.End().Format(time.RFC3339),
 		i.GetRandomFleet())
 
-	humanLabel := "TimescaleDB stationary trucks"
+	humanLabel := "TDengine stationary trucks"
 	humanDesc := fmt.Sprintf("%s: with low avg velocity in last 10 minutes", humanLabel)
 
-	i.fillInQuery(qi, humanLabel, humanDesc, iot.ReadingsTableName, sql)
+	i.fillInQuery(qi, humanLabel, humanDesc, sql)
 }
 
 // TrucksWithLongDrivingSessions finds all trucks that have not stopped at least 20 mins in the last 4 hours.
 func (i *IoT) TrucksWithLongDrivingSessions(qi query.Query) {
-	name, driver, fleet := "name", "driver", "fleet"
-
 	interval := i.Interval.MustRandWindow(iot.LongDrivingSessionDuration)
-	sql := fmt.Sprintf(`SELECT t.%s, t.%s
-		FROM tags t 
-		INNER JOIN LATERAL 
-			(SELECT  time_bucket('10 minutes', time) AS ten_minutes, tags_id  
-			FROM readings 
-			WHERE time >= '%s' AND time < '%s'
-			GROUP BY ten_minutes, tags_id  
-			HAVING avg(velocity) > 1 
-			ORDER BY ten_minutes, tags_id) AS r ON t.id = r.tags_id 
-		WHERE t.%s IS NOT NULL
-		AND t.%s = '%s'
-		GROUP BY name, driver 
-		HAVING count(r.ten_minutes) > %d`,
-		i.withAlias(name),
-		i.withAlias(driver),
-		interval.Start().Format(goTimeFmt),
-		interval.End().Format(goTimeFmt),
-		i.columnSelect(name),
-		i.columnSelect(fleet),
+	sql := fmt.Sprintf(`SELECT name,driver 
+		FROM(SELECT count(*) AS ten_min 
+		 FROM(SELECT avg(velocity) AS mean_velocity 
+		  FROM readings 
+		  WHERE fleet = '%s' AND ts > '%s' AND ts <= '%s'
+          INTERVAL(10m)
+		  GROUP BY name,driver) 
+		 WHERE mean_velocity > 1 
+		 GROUP BY name,driver) 
+		WHERE ten_min_mean_velocity > %d`,
 		i.GetRandomFleet(),
+		interval.Start().Format(time.RFC3339),
+		interval.End().Format(time.RFC3339),
 		// Calculate number of 10 min intervals that is the max driving duration for the session if we rest 5 mins per hour.
 		tenMinutePeriods(5, iot.LongDrivingSessionDuration))
 
-	humanLabel := "TimescaleDB trucks with longer driving sessions"
+	humanLabel := "TDengine trucks with longer driving sessions"
 	humanDesc := fmt.Sprintf("%s: stopped less than 20 mins in 4 hour period", humanLabel)
 
-	i.fillInQuery(qi, humanLabel, humanDesc, iot.ReadingsTableName, sql)
+	i.fillInQuery(qi, humanLabel, humanDesc, sql)
 }
 
 // TrucksWithLongDailySessions finds all trucks that have driven more than 10 hours in the last 24 hours.
 func (i *IoT) TrucksWithLongDailySessions(qi query.Query) {
-	name, driver, fleet := "name", "driver", "fleet"
-
 	interval := i.Interval.MustRandWindow(iot.DailyDrivingDuration)
-	sql := fmt.Sprintf(`SELECT t.%s, t.%s
-		FROM tags t 
-		INNER JOIN LATERAL 
-			(SELECT  time_bucket('10 minutes', time) AS ten_minutes, tags_id  
-			FROM readings 
-			WHERE time >= '%s' AND time < '%s'
-			GROUP BY ten_minutes, tags_id  
-			HAVING avg(velocity) > 1 
-			ORDER BY ten_minutes, tags_id) AS r ON t.id = r.tags_id 
-		WHERE t.%s IS NOT NULL
-		AND t.%s = '%s'
-		GROUP BY name, driver 
-		HAVING count(r.ten_minutes) > %d`,
-		i.withAlias(name),
-		i.withAlias(driver),
-		interval.Start().Format(goTimeFmt),
-		interval.End().Format(goTimeFmt),
-		i.columnSelect(name),
-		i.columnSelect(fleet),
+	sql := fmt.Sprintf(`SELECT name,driver 
+		FROM(SELECT count(*) AS ten_min 
+		 FROM(SELECT avg(velocity) AS mean_velocity 
+		  FROM readings 
+		  WHERE fleet = '%s' AND ts > '%s' AND ts <= '%s'
+          INTERVAL(10m)
+		  GROUP BY name,driver) 
+		 WHERE mean_velocity > 1 
+		 GROUP BY name,driver) 
+		WHERE ten_min_mean_velocity > %d`,
 		i.GetRandomFleet(),
+		interval.Start().Format(time.RFC3339),
+		interval.End().Format(time.RFC3339),
 		// Calculate number of 10 min intervals that is the max driving duration for the session if we rest 35 mins per hour.
 		tenMinutePeriods(35, iot.DailyDrivingDuration))
 
-	humanLabel := "TimescaleDB trucks with longer daily sessions"
+	humanLabel := "TDengine trucks with longer daily sessions"
 	humanDesc := fmt.Sprintf("%s: drove more than 10 hours in the last 24 hours", humanLabel)
 
-	i.fillInQuery(qi, humanLabel, humanDesc, iot.ReadingsTableName, sql)
+	i.fillInQuery(qi, humanLabel, humanDesc, sql)
 }
 
 // AvgVsProjectedFuelConsumption calculates average and projected fuel consumption per fleet.
 func (i *IoT) AvgVsProjectedFuelConsumption(qi query.Query) {
-	fleet, consumption, name := "fleet", "nominal_fuel_consumption", "name"
+	sql := `SELECT avg(fuel_consumption) AS mean_fuel_consumption, avg(nominal_fuel_consumption) AS nominal_fuel_consumption 
+		FROM readings 
+		WHERE velocity > 1 
+		GROUP BY fleet`
 
-	sql := fmt.Sprintf(`SELECT t.%s, avg(r.fuel_consumption) AS avg_fuel_consumption, 
-		avg(t.%s) AS projected_fuel_consumption
-		FROM tags t
-		INNER JOIN LATERAL(SELECT tags_id, fuel_consumption FROM readings r WHERE r.tags_id = t.id AND velocity > 1) r ON true
-		WHERE t.%s IS NOT NULL
-		AND t.%s IS NOT NULL 
-		AND t.%s IS NOT NULL
-		GROUP BY fleet`,
-		i.withAlias(fleet),
-		i.columnSelect(consumption),
-		i.columnSelect(fleet),
-		i.columnSelect(consumption),
-		i.columnSelect(name))
-
-	humanLabel := "TimescaleDB average vs projected fuel consumption per fleet"
+	humanLabel := "TDengine average vs projected fuel consumption per fleet"
 	humanDesc := humanLabel
 
-	i.fillInQuery(qi, humanLabel, humanDesc, iot.ReadingsTableName, sql)
+	i.fillInQuery(qi, humanLabel, humanDesc, sql)
 }
 
 // AvgDailyDrivingDuration finds the average driving duration per driver.
 func (i *IoT) AvgDailyDrivingDuration(qi query.Query) {
-	name, driver, fleet := "name", "driver", "fleet"
+	start := i.Interval.Start().Format(time.RFC3339)
+	end := i.Interval.End().Format(time.RFC3339)
+	sql := fmt.Sprintf(`SELECT count(mv)/6 as hours_driven 
+		FROM (SELECT avg(velocity) as mv 
+		 FROM readings 
+		 WHERE ts > '%s' AND ts < '%s'
+		 INTERVAL(10m)
+		 GROUP BY fleet, name, driver) 
+		WHERE ts > '%s' AND ts < '%s' 
+		INTERVAL(1d)`,
+		// BY fleet, name, driver`,
+		// BUG: invalid operation: interval not allowed in group by normal column
+		start,
+		end,
+		start,
+		end,
+	)
 
-	sql := fmt.Sprintf(`WITH ten_minute_driving_sessions
-		AS (
-			SELECT time_bucket('10 minutes', TIME) AS ten_minutes, tags_id
-			FROM readings r
-			GROUP BY tags_id, ten_minutes
-			HAVING avg(velocity) > 1
-			), daily_total_session
-		AS (
-			SELECT time_bucket('24 hours', ten_minutes) AS day, tags_id, count(*) / 6 AS hours
-			FROM ten_minute_driving_sessions
-			GROUP BY day, tags_id
-			)
-		SELECT t.%s, t.%s, t.%s, avg(d.hours) AS avg_daily_hours
-		FROM daily_total_session d
-		INNER JOIN tags t ON t.id = d.tags_id
-		GROUP BY fleet, name, driver`,
-		i.withAlias(fleet),
-		i.withAlias(name),
-		i.withAlias(driver))
-
-	humanLabel := "TimescaleDB average driver driving duration per day"
+	humanLabel := "TDengine average driver driving duration per day"
 	humanDesc := humanLabel
 
-	i.fillInQuery(qi, humanLabel, humanDesc, iot.ReadingsTableName, sql)
+	i.fillInQuery(qi, humanLabel, humanDesc, sql)
 }
 
-// AvgDailyDrivingSession finds the average driving session without stopping per driver per day.
+// AvgDailyDrivingSession finds the saverage driving session without stopping per driver per day.
 func (i *IoT) AvgDailyDrivingSession(qi query.Query) {
-	name := "name"
+	start := i.Interval.Start().Format(time.RFC3339)
+	end := i.Interval.End().Format(time.RFC3339)
+	// TODO: not support
+	sql := fmt.Sprintf(`SELECT elapsed 
+		INTO random_measure2_1 
+		FROM (SELECT difference(difka), elapsed(difka, 1m) 
+		 FROM (SELECT difka 
+		  FROM (SELECT difference(mv) AS difka 
+		   FROM (SELECT floor(avg(velocity)/10)/floor(avg(velocity)/10) AS mv 
+		    FROM readings 
+		    WHERE name!='' AND ts > '%s' AND ts < '%s' 
+		    INTERVAL(10m)
+		    GROUP BY name fill(0)) 
+		   GROUP BY name) 
+		  WHERE difka!=0 
+		  GROUP BY name) 
+		 GROUP BY name) 
+		WHERE difference = -2 
+		GROUP BY name; 
+		SELECT avg(elapsed) 
+		FROM random_measure2_1 
+		WHERE ts > '%s' AND ts < '%s' 
+		GROUP BY time(1d),name`,
+		start,
+		end,
+		start,
+		end,
+	)
 
-	sql := fmt.Sprintf(`WITH driver_status
-		AS (
-			SELECT tags_id, time_bucket('10 mins', TIME) AS ten_minutes, avg(velocity) > 5 AS driving
-			FROM readings
-			GROUP BY tags_id, ten_minutes
-			ORDER BY tags_id, ten_minutes
-			), driver_status_change
-		AS (
-			SELECT tags_id, ten_minutes AS start, lead(ten_minutes) OVER (PARTITION BY tags_id ORDER BY ten_minutes) AS stop, driving
-			FROM (
-				SELECT tags_id, ten_minutes, driving, lag(driving) OVER (PARTITION BY tags_id ORDER BY ten_minutes) AS prev_driving
-				FROM driver_status
-				) x
-			WHERE x.driving <> x.prev_driving
-			)
-		SELECT t.%s, time_bucket('24 hours', start) AS day, avg(age(stop, start)) AS duration
-		FROM tags t
-		INNER JOIN driver_status_change d ON t.id = d.tags_id
-		WHERE t.%s IS NOT NULL
-		AND d.driving = true
-		GROUP BY name, day
-		ORDER BY name, day`,
-		i.withAlias(name),
-		i.columnSelect(name))
-
-	humanLabel := "TimescaleDB average driver driving session without stopping per day"
+	humanLabel := "TDengine average driver driving session without stopping per day"
 	humanDesc := humanLabel
 
-	i.fillInQuery(qi, humanLabel, humanDesc, iot.ReadingsTableName, sql)
+	i.fillInQuery(qi, humanLabel, humanDesc, sql)
 }
 
 // AvgLoad finds the average load per truck model per fleet.
 func (i *IoT) AvgLoad(qi query.Query) {
-	fleet, model, load, name := "fleet", "model", "load_capacity", "name"
+	sql := `SELECT avg(ml) AS mean_load_percentage 
+		FROM (SELECT current_load/load_capacity AS ml 
+		 FROM diagnostics 
+		 GROUP BY name, fleet, model) 
+		GROUP BY fleet, model`
 
-	sql := fmt.Sprintf(`SELECT t.%s, t.%s, t.%s, avg(d.avg_load / t.%s) AS avg_load_percentage
-		FROM tags t
-		INNER JOIN (
-			SELECT tags_id, avg(current_load) AS avg_load
-			FROM diagnostics d
-			GROUP BY tags_id
-			) d ON t.id = d.tags_id
-		WHERE t.%s IS NOT NULL
-		GROUP BY fleet, model, load_capacity`,
-		i.withAlias(fleet),
-		i.withAlias(model),
-		i.withAlias(load),
-		i.columnSelect(load),
-		i.columnSelect(name))
-
-	humanLabel := "TimescaleDB average load per truck model per fleet"
+	humanLabel := "TDengine average load per truck model per fleet"
 	humanDesc := humanLabel
 
-	i.fillInQuery(qi, humanLabel, humanDesc, iot.ReadingsTableName, sql)
+	i.fillInQuery(qi, humanLabel, humanDesc, sql)
 }
 
 // DailyTruckActivity returns the number of hours trucks has been active (not out-of-commission) per day per fleet per model.
 func (i *IoT) DailyTruckActivity(qi query.Query) {
-	fleet, model, name := "fleet", "model", "name"
+	start := i.Interval.Start().Format(time.RFC3339)
+	end := i.Interval.End().Format(time.RFC3339)
+	sql := fmt.Sprintf(`SELECT count(ms)/144 
+		FROM (SELECT avg(status) AS ms 
+		 FROM diagnostics 
+		 WHERE ts >= '%s' AND ts < '%s' 
+		 GROUP BY time(10m), model, fleet) 
+		WHERE ts >= '%s' AND ts < '%s' AND ms<1 
+		GROUP BY time(1d), model, fleet`,
+		start,
+		end,
+		start,
+		end,
+	)
 
-	sql := fmt.Sprintf(`SELECT t.%s, t.%s, y.day, sum(y.ten_mins_per_day) / 144 AS daily_activity
-		FROM tags t
-		INNER JOIN (
-			SELECT time_bucket('24 hours', TIME) AS day, time_bucket('10 minutes', TIME) AS ten_minutes, tags_id, count(*) AS ten_mins_per_day
-			FROM diagnostics
-			GROUP BY day, ten_minutes, tags_id
-			HAVING avg(STATUS) < 1
-			) y ON y.tags_id = t.id
-		WHERE t.%s IS NOT NULL
-		GROUP BY fleet, model, y.day
-		ORDER BY y.day`,
-		i.withAlias(fleet),
-		i.withAlias(model),
-		i.columnSelect(name))
-
-	humanLabel := "TimescaleDB daily truck activity per fleet per model"
+	humanLabel := "TDengine daily truck activity per fleet per model"
 	humanDesc := humanLabel
 
-	i.fillInQuery(qi, humanLabel, humanDesc, iot.ReadingsTableName, sql)
+	i.fillInQuery(qi, humanLabel, humanDesc, sql)
 }
 
 // TruckBreakdownFrequency calculates the amount of times a truck model broke down in the last period.
 func (i *IoT) TruckBreakdownFrequency(qi query.Query) {
-	model, name := "model", "name"
-
-	sql := fmt.Sprintf(`WITH breakdown_per_truck_per_ten_minutes
-		AS (
-			SELECT time_bucket('10 minutes', TIME) AS ten_minutes, tags_id, count(STATUS = 0) / count(*) >= 0.5 AS broken_down
-			FROM diagnostics
-			GROUP BY ten_minutes, tags_id
-			), breakdowns_per_truck
-		AS (
-			SELECT ten_minutes, tags_id, broken_down, lead(broken_down) OVER (
-					PARTITION BY tags_id ORDER BY ten_minutes
-					) AS next_broken_down
-			FROM breakdown_per_truck_per_ten_minutes
-			)
-		SELECT t.%s, count(*)
-		FROM tags t
-		INNER JOIN breakdowns_per_truck b ON t.id = b.tags_id
-		WHERE t.%s IS NOT NULL
-		AND broken_down = false AND next_broken_down = true
+	start := i.Interval.Start().Format(time.RFC3339)
+	end := i.Interval.End().Format(time.RFC3339)
+	sql := fmt.Sprintf(`SELECT count(state_changed) 
+		FROM (SELECT difference(broken_down) AS state_changed 
+		 FROM (SELECT floor(2*(sum(nzs)/count(nzs)))/floor(2*(sum(nzs)/count(nzs))) AS broken_down 
+		  FROM (SELECT model, status/status AS nzs 
+		   FROM diagnostics 
+		   WHERE ts >= '%s' AND ts < '%s') 
+		  WHERE ts >= '%s' AND ts < '%s'
+	      INTERVAL(10m)
+		  GROUP BY time(10m),model) 
+		 GROUP BY model) 
+		WHERE state_changed = 1 
 		GROUP BY model`,
-		i.withAlias(model),
-		i.columnSelect(name))
+		start,
+		end,
+		start,
+		end,
+	)
 
-	humanLabel := "TimescaleDB truck breakdown frequency per model"
+	humanLabel := "TDengine truck breakdown frequency per model"
 	humanDesc := humanLabel
 
-	i.fillInQuery(qi, humanLabel, humanDesc, iot.DiagnosticsTableName, sql)
+	i.fillInQuery(qi, humanLabel, humanDesc, sql)
 }
 
 // tenMinutePeriods calculates the number of 10 minute periods that can fit in

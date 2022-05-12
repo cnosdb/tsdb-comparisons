@@ -8,26 +8,20 @@ import (
 	"github.com/cnosdb/tsdb-comparisons/pkg/query"
 )
 
-const goTimeFmt = "2006-01-02 15:04:05.999999 -0700"
-
 // BaseGenerator contains settings specific for TimescaleDB
 type BaseGenerator struct {
-	UseJSON       bool
-	UseTags       bool
-	UseTimeBucket bool
 }
 
-// GenerateEmptyQuery returns an empty query.TimescaleDB.
+// GenerateEmptyQuery returns an empty query.TDengine.
 func (g *BaseGenerator) GenerateEmptyQuery() query.Query {
-	return query.NewTimescaleDB()
+	return query.NewTDengine()
 }
 
 // fillInQuery fills the query struct with data.
-func (g *BaseGenerator) fillInQuery(qi query.Query, humanLabel, humanDesc, table, sql string) {
-	q := qi.(*query.TimescaleDB)
+func (g *BaseGenerator) fillInQuery(qi query.Query, humanLabel, humanDesc, sql string) {
+	q := qi.(*query.TDengine)
 	q.HumanLabel = []byte(humanLabel)
 	q.HumanDescription = []byte(humanDesc)
-	q.Hypertable = []byte(table)
 	q.SqlQuery = []byte(sql)
 }
 
@@ -39,10 +33,10 @@ func (g *BaseGenerator) NewIoT(start, end time.Time, scale int) (utils.QueryGene
 		return nil, err
 	}
 
-	iot := &IoT{
+	i := &IoT{
 		BaseGenerator: g,
 		Core:          core,
 	}
 
-	return iot, nil
+	return i, nil
 }
