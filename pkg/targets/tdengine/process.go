@@ -77,15 +77,15 @@ func (p *processor) ProcessBatch(b targets.Batch, doLoad bool) (uint64, uint64) 
 // ("truck_1", "South", "Albert", "F-150", "v1.5",2000,200,15) VALUES (now, 11.2, 12.19,1);
 func (p *processor) processCSI(hypertable string, rows []*insertData) uint64 {
 	colLen := len(tableCols[hypertable])
-
 	tagRows, dataRows, numMetrics := p.splitTagsAndMetrics(rows, colLen)
 
+	httpbody := "INSERT INTO "
 	tagVals := p.insertTags(tagRows)
 	for i, str := range tagVals {
-		sql := fmt.Sprintf("INSERT INTO %s USING %s TAGS (%s) VALUES (%s)", "t_"+md5Str(str), hypertable, str, dataRows[i])
-
-		httpClientExecSQL(p.client, p.httpurl, sql, p.opts.User, p.opts.Pass)
+		tablname := "t_" + md5Str(str)[0:10]
+		httpbody += fmt.Sprintf("%s USING %s TAGS (%s) VALUES (%s) ", tablname, hypertable, str, dataRows[i])
 	}
+	httpClientExecSQL(p.client, p.httpurl, httpbody, p.opts.User, p.opts.Pass)
 
 	return numMetrics
 }
