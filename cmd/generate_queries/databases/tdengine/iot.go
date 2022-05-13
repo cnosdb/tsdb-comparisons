@@ -38,12 +38,10 @@ func (i *IoT) getTruckWhereString(nTrucks int) string {
 }
 
 // LastLocByTruck finds the truck location for nTrucks.
+// ReWrite
 func (i *IoT) LastLocByTruck(qi query.Query, nTrucks int) {
-	sql := fmt.Sprintf(`SELECT name, driver, latitude, longitude 
-		FROM readings 
-		WHERE %s 
-		ORDER BY ts 
-		LIMIT 1`,
+	sql := fmt.Sprintf(`select name, driver, latitude, longitude from 
+	(select last(*) from readings where %s group by name,driver )t1;`,
 		i.getTruckWhereString(nTrucks))
 
 	humanLabel := "TDengine last location by specific truck"
@@ -53,14 +51,11 @@ func (i *IoT) LastLocByTruck(qi query.Query, nTrucks int) {
 }
 
 // LastLocPerTruck finds all the truck locations along with truck and driver names.
+// ReWrite
 func (i *IoT) LastLocPerTruck(qi query.Query) {
 
-	sql := fmt.Sprintf(`SELECT latitude, longitude 
-		FROM readings 
-		WHERE fleet='%s' 
-		GROUP BY name,driver 
-		ORDER BY ts 
-		LIMIT 1`,
+	sql := fmt.Sprintf(`select name, driver, latitude, longitude from 
+	(select last(*) from readings where fleet="%s" group by name,driver )t1;`,
 		i.GetRandomFleet())
 
 	humanLabel := "TDengine last location per truck"
@@ -70,12 +65,11 @@ func (i *IoT) LastLocPerTruck(qi query.Query) {
 }
 
 // TrucksWithLowFuel finds all trucks with low fuel (less than 10%).
+// ReWrite
 func (i *IoT) TrucksWithLowFuel(qi query.Query) {
-	sql := fmt.Sprintf(`SELECT name, driver, fuel_state 
-		FROM diagnostics 
-		WHERE fuel_state <= 0.1 AND fleet = '%s'
-		ORDER BY ts DESC 
-		LIMIT 1`,
+	sql := fmt.Sprintf(`select ts,name,driver,fuel_state from 
+		(select last(*) from diagnostics where fuel_state <=0.1
+         and fleet="%s" group by name, driver)t1; `,
 		i.GetRandomFleet())
 
 	humanLabel := "TDengine trucks with low fuel"
@@ -85,16 +79,14 @@ func (i *IoT) TrucksWithLowFuel(qi query.Query) {
 }
 
 // TrucksWithHighLoad finds all trucks that have load over 90%.
+// TODO: current_load >= 0.9*load_capacity not support
 func (i *IoT) TrucksWithHighLoad(qi query.Query) {
-	sql := fmt.Sprintf(`SELECT ts, name, driver, current_load, load_capacity 
-		FROM (SELECT ts,name,driver, current_load, load_capacity 
-		 FROM diagnostics WHERE fleet = '%s'
-		 ORDER BY ts DESC 
-		 LIMIT 1) 
-		WHERE current_load >= 0.9 * load_capacity
-		ORDER BY ts DESC`,
+	sql := fmt.Sprintf(`SELECT ts, name, driver, current_load, load_capacity from 
+		(select last(*) from diagnostics where current_load >= 0.9*load_capacity 
+		and fleet="%s"
+		group by name, driver, load_capacity) limit 10;`,
 		i.GetRandomFleet())
-
+	//
 	humanLabel := "TDengine trucks with high load"
 	humanDesc := fmt.Sprintf("%s: over 90 percent", humanLabel)
 
@@ -102,17 +94,15 @@ func (i *IoT) TrucksWithHighLoad(qi query.Query) {
 }
 
 // StationaryTrucks finds all trucks that have low average velocity in a time window.
+// TODO: not support mean_velocity < 1
 func (i *IoT) StationaryTrucks(qi query.Query) {
 	interval := i.Interval.MustRandWindow(iot.StationaryDuration)
-	sql := fmt.Sprintf(`SELECT name, driver 
-		FROM(SELECT avg(velocity) as mean_velocity 
+	sql := fmt.Sprintf(`SELECT avg(velocity) as mean_velocity, name, driver, fleet
 		 FROM readings 
 		 WHERE ts > '%s' AND ts <= '%s' 
+		 AND fleet = '%s' AND mean_velocity < 1
 	     INTERVAL(10m)
-		 GROUP BY name,driver,fleet  
-		 LIMIT 1) 
-		WHERE fleet = '%s' AND mean_velocity < 1 
-		GROUP BY name`,
+		 GROUP BY name,driver,fleet`,
 		interval.Start().Format(time.RFC3339),
 		interval.End().Format(time.RFC3339),
 		i.GetRandomFleet())
@@ -124,6 +114,7 @@ func (i *IoT) StationaryTrucks(qi query.Query) {
 }
 
 // TrucksWithLongDrivingSessions finds all trucks that have not stopped at least 20 mins in the last 4 hours.
+// TODO not support mean_velocity > 1
 func (i *IoT) TrucksWithLongDrivingSessions(qi query.Query) {
 	interval := i.Interval.MustRandWindow(iot.LongDrivingSessionDuration)
 	sql := fmt.Sprintf(`SELECT name,driver 
@@ -149,6 +140,7 @@ func (i *IoT) TrucksWithLongDrivingSessions(qi query.Query) {
 }
 
 // TrucksWithLongDailySessions finds all trucks that have driven more than 10 hours in the last 24 hours.
+// TODO
 func (i *IoT) TrucksWithLongDailySessions(qi query.Query) {
 	interval := i.Interval.MustRandWindow(iot.DailyDrivingDuration)
 	sql := fmt.Sprintf(`SELECT name,driver 
@@ -174,6 +166,7 @@ func (i *IoT) TrucksWithLongDailySessions(qi query.Query) {
 }
 
 // AvgVsProjectedFuelConsumption calculates average and projected fuel consumption per fleet.
+// TODO: not support avg(nominal_fuel_consumption)
 func (i *IoT) AvgVsProjectedFuelConsumption(qi query.Query) {
 	sql := `SELECT avg(fuel_consumption) AS mean_fuel_consumption, avg(nominal_fuel_consumption) AS nominal_fuel_consumption 
 		FROM readings 
@@ -187,6 +180,7 @@ func (i *IoT) AvgVsProjectedFuelConsumption(qi query.Query) {
 }
 
 // AvgDailyDrivingDuration finds the average driving duration per driver.
+// ok
 func (i *IoT) AvgDailyDrivingDuration(qi query.Query) {
 	start := i.Interval.Start().Format(time.RFC3339)
 	end := i.Interval.End().Format(time.RFC3339)
@@ -198,8 +192,6 @@ func (i *IoT) AvgDailyDrivingDuration(qi query.Query) {
 		 GROUP BY fleet, name, driver) 
 		WHERE ts > '%s' AND ts < '%s' 
 		INTERVAL(1d)`,
-		// BY fleet, name, driver`,
-		// BUG: invalid operation: interval not allowed in group by normal column
 		start,
 		end,
 		start,
@@ -213,6 +205,7 @@ func (i *IoT) AvgDailyDrivingDuration(qi query.Query) {
 }
 
 // AvgDailyDrivingSession finds the saverage driving session without stopping per driver per day.
+// TODO
 func (i *IoT) AvgDailyDrivingSession(qi query.Query) {
 	start := i.Interval.Start().Format(time.RFC3339)
 	end := i.Interval.End().Format(time.RFC3339)
@@ -250,12 +243,11 @@ func (i *IoT) AvgDailyDrivingSession(qi query.Query) {
 }
 
 // AvgLoad finds the average load per truck model per fleet.
+// TODO: not support current_load/load_capacity
 func (i *IoT) AvgLoad(qi query.Query) {
-	sql := `SELECT avg(ml) AS mean_load_percentage 
-		FROM (SELECT current_load/load_capacity AS ml 
+	sql := `SELECT avg(current_load/load_capacity) AS mean_load_percentage 
 		 FROM diagnostics 
-		 GROUP BY name, fleet, model) 
-		GROUP BY fleet, model`
+		 GROUP BY name, fleet, model`
 
 	humanLabel := "TDengine average load per truck model per fleet"
 	humanDesc := humanLabel
@@ -264,6 +256,7 @@ func (i *IoT) AvgLoad(qi query.Query) {
 }
 
 // DailyTruckActivity returns the number of hours trucks has been active (not out-of-commission) per day per fleet per model.
+// TODO: not support ms<1
 func (i *IoT) DailyTruckActivity(qi query.Query) {
 	start := i.Interval.Start().Format(time.RFC3339)
 	end := i.Interval.End().Format(time.RFC3339)
@@ -271,9 +264,11 @@ func (i *IoT) DailyTruckActivity(qi query.Query) {
 		FROM (SELECT avg(status) AS ms 
 		 FROM diagnostics 
 		 WHERE ts >= '%s' AND ts < '%s' 
-		 GROUP BY time(10m), model, fleet) 
+         INTERVAL(10m)
+		 GROUP BY model, fleet) 
 		WHERE ts >= '%s' AND ts < '%s' AND ms<1 
-		GROUP BY time(1d), model, fleet`,
+		INTERVAL(1d)
+		GROUP BY  model, fleet`,
 		start,
 		end,
 		start,
@@ -287,6 +282,7 @@ func (i *IoT) DailyTruckActivity(qi query.Query) {
 }
 
 // TruckBreakdownFrequency calculates the amount of times a truck model broke down in the last period.
+// TODO
 func (i *IoT) TruckBreakdownFrequency(qi query.Query) {
 	start := i.Interval.Start().Format(time.RFC3339)
 	end := i.Interval.End().Format(time.RFC3339)
