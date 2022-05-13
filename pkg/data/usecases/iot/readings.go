@@ -1,10 +1,11 @@
 package iot
 
 import (
-	"github.com/cnosdb/tsdb-comparisons/pkg/data"
-	"github.com/cnosdb/tsdb-comparisons/pkg/data/usecases/common"
 	"math/rand"
 	"time"
+
+	"github.com/cnosdb/tsdb-comparisons/pkg/data"
+	"github.com/cnosdb/tsdb-comparisons/pkg/data/usecases/common"
 )
 
 const (
@@ -26,11 +27,12 @@ var (
 	labelHeading         = []byte("heading")
 	labelGrade           = []byte("grade")
 	labelFuelConsumption = []byte("fuel_consumption")
-	geoStepUD            = common.UD(-0.005, 0.005)
-	
+
+	geoStepUD = common.UD(-0.005, 0.005)
+
 	bigUD   = common.UD(-10, 10)
 	smallUD = common.UD(-5, 5)
-	
+
 	readingsFields = []common.LabeledDistributionMaker{
 		{
 			Label: labelLatitude,
@@ -95,6 +97,33 @@ var (
 				)
 			},
 		},
+		{
+			Label: labelLoadCapacity,
+			DistributionMaker: func() common.Distribution {
+				return common.FP(
+					common.CWD(statusND, 1500, 5000, 0),
+					0,
+				)
+			},
+		},
+		{
+			Label: labelFuelCapacity,
+			DistributionMaker: func() common.Distribution {
+				return common.FP(
+					common.CWD(statusND, 150, 300, 0),
+					0,
+				)
+			},
+		},
+		{
+			Label: labelNominalFuelConsumption,
+			DistributionMaker: func() common.Distribution {
+				return common.FP(
+					common.CWD(statusND, 12, 29, 0),
+					0,
+				)
+			},
+		},
 	}
 )
 
@@ -108,7 +137,7 @@ func (m *ReadingsMeasurement) ToPoint(p *data.Point) {
 	p.SetMeasurementName(labelReadings)
 	copy := m.Timestamp
 	p.SetTimestamp(&copy)
-	
+
 	for i, d := range m.Distributions {
 		p.AppendField(readingsFields[i].Label, float64(d.Get()))
 	}
@@ -117,7 +146,7 @@ func (m *ReadingsMeasurement) ToPoint(p *data.Point) {
 // NewReadingsMeasurement creates a new ReadingsMeasurement with start time.
 func NewReadingsMeasurement(start time.Time) *ReadingsMeasurement {
 	sub := common.NewSubsystemMeasurementWithDistributionMakers(start, readingsFields)
-	
+
 	return &ReadingsMeasurement{
 		SubsystemMeasurement: sub,
 	}
