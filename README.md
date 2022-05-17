@@ -59,7 +59,7 @@ $ go install ./...
 1. 要为哪一个数据库生成。例如： `cnosdb`
  (从`cnosdb`、`timescaledb` 以及`influx`中选择)
 
-根据以上步骤，您现在可以生成一个数据集(或多个数据集，如果您选择为多个数据库生成)，可以使用`tsbs_generate_data`工具对所选数据库的数据加载进行基准测试
+根据以上步骤，您现在可以生成一个数据集(或多个数据集，如果您选择为多个数据库生成)，可以使用`generate_data`工具对所选数据库的数据加载进行基准测试
 ```bash
 $ generate_data --use-case="iot" --seed=123 --scale=4000 \
     --timestamp-start="2022-01-01T00:00:00Z" \
@@ -101,7 +101,7 @@ $ generate_queries --use-case="iot" --seed=123 --scale=4000 \
 
 ### 基准测试插入/写性能
 
-#### 使用数据库特定的`tsbs_load_*`可执行文件
+#### 使用数据库特定的`load_*`可执行文件
 
 TSDB-COMPARISONS通过获取上一步生成的数据并将其作为特定于数据库的命令行程序的输入来测量插入/写入性能。使用`-help`查看更多详细信息(例如：`load_cnosdb -help`)。
 
@@ -114,20 +114,20 @@ cat /tmp/cnosdb-data.gz | gunzip | load_cnosdb
 为了更简单的测试，特别是本地测试，我们还提供了`scripts/load/load_<database>.sh`，并为一些数据库设置了合理的默认标志。因此，要加载到CnosDB，请确保TimescaleDB正在运行，然后使用:
 ```bash
 # Will insert using 2 clients, batch sizes of 10k, from a file
-# named `timescaledb-data.gz` in directory `/tmp`
+# named `cnosdb-data.gz` in directory `/tmp`
 $ NUM_WORKERS=2 BATCH_SIZE=10000 BULK_DATA_DIR=/tmp \
     scripts/load/load_cnosdb.sh
 ```
 
 这将创建一个名为`benchmark`的新数据库，数据存储在其中。它将覆盖数据库，如果它存在;如果您不希望发生这种情况，请为上述命令提供一个不同的`DATABASE_NAME`。
 
-使用`load_timeescaledb .sh`写入远程主机的示例:
+使用`load_cnosdb.sh`写入远程主机的示例:
 ```bash
 # Will insert using 2 clients, batch sizes of 10k, from a file
-# named `timescaledb-data.gz` in directory `/tmp`
+# named `cnosdb-data.gz` in directory `/tmp`
 $ NUM_WORKERS=2 BATCH_SIZE=10000 BULK_DATA_DIR=/tmp DATABASE_HOST=remotehostname
 DATABASE_USER=user DATABASE \
-    scripts/load/load_timescaledb.sh
+    scripts/load/cnosdb.sh
 ```
 
 ---
