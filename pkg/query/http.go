@@ -5,7 +5,7 @@ import (
 	"sync"
 )
 
-// HTTP encodes an HTTP request. This will typically by serialized for use
+// HTTP encodes an HTTP request. This will typically be serialized for use
 // by the appropriate tsbs_run_queries program.
 type HTTP struct {
 	HumanLabel       []byte

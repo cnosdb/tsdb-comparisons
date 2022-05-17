@@ -2,9 +2,10 @@ package iot
 
 import (
 	"fmt"
-	"github.com/cnosdb/tsdb-comparisons/pkg/data/usecases/common"
 	"math/rand"
 	"time"
+
+	"github.com/cnosdb/tsdb-comparisons/pkg/data/usecases/common"
 )
 
 const (
@@ -27,7 +28,7 @@ var (
 		"Seth",
 		"Trish",
 	}
-	
+
 	modelChoices = []model{
 		{
 			Name:            "F-150",
@@ -48,14 +49,14 @@ var (
 			FuelConsumption: 12,
 		},
 	}
-	
+
 	deviceVersionChoices = []string{
 		"v1.0",
 		"v1.5",
 		"v2.0",
 		"v2.3",
 	}
-	
+
 	// FleetChoices contains all the fleet name values for the IoT use case
 	FleetChoices = []string{
 		"East",
@@ -103,9 +104,9 @@ func NewTruck(i int, start time.Time) common.Generator {
 
 func newTruckWithMeasurementGenerator(i int, start time.Time, generator func(time.Time) []common.SimulatedMeasurement) Truck {
 	sm := generator(start)
-	
+
 	m := modelChoices[rand.Intn(len(modelChoices))]
-	
+
 	h := Truck{
 		tags: []common.Tag{
 			{Key: []byte("name"), Value: fmt.Sprintf(truckNameFmt, i)},
@@ -113,12 +114,12 @@ func newTruckWithMeasurementGenerator(i int, start time.Time, generator func(tim
 			{Key: []byte("driver"), Value: common.RandomStringSliceChoice(driverChoices)},
 			{Key: []byte("model"), Value: m.Name},
 			{Key: []byte("device_version"), Value: common.RandomStringSliceChoice(deviceVersionChoices)},
-			{Key: []byte("load_capacity"), Value: m.LoadCapacity},
-			{Key: []byte("fuel_capacity"), Value: m.FuelCapacity},
-			{Key: []byte("nominal_fuel_consumption"), Value: m.FuelConsumption},
+			// {Key: []byte("load_capacity"), Value: m.LoadCapacity},
+			// {Key: []byte("fuel_capacity"), Value: m.FuelCapacity},
+			// {Key: []byte("nominal_fuel_consumption"), Value: m.FuelConsumption},
 		},
 		simulatedMeasurements: sm,
 	}
-	
+
 	return h
 }
