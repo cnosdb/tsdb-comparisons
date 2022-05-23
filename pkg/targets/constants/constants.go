@@ -6,6 +6,7 @@ const (
 	FormatTimescaleDB = "timescaledb"
 	FormatCnosDB      = "cnosdb"
 	FormatTDEngine    = "tdengine"
+	FormatIOTDB       = "iotdb"
 )
 
 func SupportedFormats() []string {
@@ -14,5 +15,6 @@ func SupportedFormats() []string {
 		FormatTimescaleDB,
 		FormatCnosDB,
 		FormatTDEngine,
+		FormatIOTDB,
 	}
 }

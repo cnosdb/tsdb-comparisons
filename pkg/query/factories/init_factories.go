@@ -3,6 +3,7 @@ package factories
 import (
 	"github.com/cnosdb/tsdb-comparisons/cmd/generate_queries/databases/cnosdb"
 	"github.com/cnosdb/tsdb-comparisons/cmd/generate_queries/databases/influx"
+	"github.com/cnosdb/tsdb-comparisons/cmd/generate_queries/databases/iotdb"
 	"github.com/cnosdb/tsdb-comparisons/cmd/generate_queries/databases/tdengine"
 	"github.com/cnosdb/tsdb-comparisons/cmd/generate_queries/databases/timescaledb"
 
@@ -20,6 +21,7 @@ func InitQueryFactories(config *config.QueryGeneratorConfig) map[string]interfac
 		UseTimeBucket: config.TimescaleUseTimeBucket,
 	}
 	factories[constants.FormatTDEngine] = &tdengine.BaseGenerator{}
+	factories[constants.FormatIOTDB] = &iotdb.BaseGenerator{}
 
 	return factories
 }
