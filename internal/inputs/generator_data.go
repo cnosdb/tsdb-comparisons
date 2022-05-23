@@ -134,6 +134,9 @@ func (g *DataGenerator) getSerializer(sim common.Simulator, target targets.Imple
 
 	case constants.FormatTDEngine:
 		g.writeHeader(sim.Headers())
+
+	case constants.FormatIOTDB:
+		g.writeHeader(sim.Headers())
 	}
 	return target.Serializer(), nil
 }
