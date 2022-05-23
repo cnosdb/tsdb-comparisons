@@ -1,14 +1,12 @@
 package iotdb
 
 import (
-	"crypto/md5"
-	"encoding/hex"
 	"fmt"
-	"net/http"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/apache/iotdb-client-go/client"
 	"github.com/cnosdb/tsdb-comparisons/pkg/targets"
 )
 
@@ -21,28 +19,26 @@ type processor struct {
 	opts   *LoadingOptions
 	dbName string
 
-	client  *http.Client
-	httpurl string
+	session *client.Session
 }
 
 func newProcessor(opts *LoadingOptions, dbName string) *processor {
 	return &processor{
-		opts:    opts,
-		dbName:  dbName,
-		httpurl: opts.HttpURL(),
+		opts:   opts,
+		dbName: dbName,
 	}
 }
 
 func (p *processor) Init(_ int, doLoad, hashWorkers bool) {
-	tr := &http.Transport{
-		MaxIdleConns:        128,
-		MaxIdleConnsPerHost: 128,
-		MaxConnsPerHost:     1024 * 4,
-		IdleConnTimeout:     time.Second * 60,
-	}
-
-	p.client = &http.Client{
-		Transport: tr,
+	config := &client.Config{
+		Host:     p.opts.Host,
+		Port:     p.opts.Port,
+		UserName: p.opts.User,
+		Password: p.opts.Pass}
+	p.session = client.NewSession(config)
+	if err := p.session.Open(false, 0); err != nil {
+		fmt.Printf("Connect to iotdb %+v failed %v\n", config, err)
+		panic("")
 	}
 }
 
@@ -75,17 +71,26 @@ func (p *processor) ProcessBatch(b targets.Batch, doLoad bool) (uint64, uint64) 
 // diagnostics,1640995200000 000000,1,,0
 // INSERT INTO diagnostics USING diagnostics_super TAGS
 // ("truck_1", "South", "Albert", "F-150", "v1.5",2000,200,15) VALUES (now, 11.2, 12.19,1);
+
+// insert into root.ln.wf02.wt02(time,s5) values(1,true)
 func (p *processor) processCSI(hypertable string, rows []*insertData) uint64 {
 	colLen := len(tableCols[hypertable])
 	tagRows, dataRows, numMetrics := p.splitTagsAndMetrics(rows, colLen)
 
-	httpbody := "INSERT INTO "
+	sqls := make([]string, len(rows))
 	tagVals := p.insertTags(tagRows)
-	for i, str := range tagVals {
-		tablname := "t_" + md5Str(str)[0:10]
-		httpbody += fmt.Sprintf("%s USING %s TAGS (%s) VALUES (%s) ", tablname, hypertable, str, dataRows[i])
+	for i, tagvals := range tagVals {
+		fields := strings.Join(tableCols[hypertable], ",") + "," + strings.Join(tableCols[tagsKey], ",")
+
+		sql := fmt.Sprintf("insert into root.%s.%s (timestamp, %s) values (%s,%s)",
+			p.dbName, hypertable, fields, dataRows[i], tagvals)
+
+		sqls[i] = sql
+
+		//fmt.Printf("===%s\n", sql)
 	}
-	httpClientExecSQL(p.client, p.httpurl, httpbody, p.opts.User, p.opts.Pass)
+
+	p.session.ExecuteBatchStatement(sqls)
 
 	return numMetrics
 }
@@ -127,12 +132,6 @@ func (p *processor) splitTagsAndMetrics(rows []*insertData, dataCols int) ([][]s
 	}
 
 	return tagRows, dataRows, numMetrics
-}
-
-func md5Str(str string) string {
-	h := md5.New()
-	h.Write([]byte(str))
-	return hex.EncodeToString(h.Sum(nil))
 }
 
 func convertValsToBasedOnType(values []string, types []string, quotemark string, null string) []string {

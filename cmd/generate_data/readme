@@ -1,0 +1,4 @@
+IOTDB表名格式
+root.database.readings
+root.database.diagnostics
+database: db名字

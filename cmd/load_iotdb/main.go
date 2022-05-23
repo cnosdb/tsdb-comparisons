@@ -10,13 +10,13 @@ import (
 	"github.com/cnosdb/tsdb-comparisons/internal/utils"
 	"github.com/cnosdb/tsdb-comparisons/load"
 	"github.com/cnosdb/tsdb-comparisons/pkg/data/source"
-	"github.com/cnosdb/tsdb-comparisons/pkg/targets/tdengine"
+	"github.com/cnosdb/tsdb-comparisons/pkg/targets/iotdb"
 	"github.com/spf13/pflag"
 )
 
 // Parse args:
-func initProgramOptions() (*tdengine.LoadingOptions, load.BenchmarkRunner, *load.BenchmarkRunnerConfig) {
-	target := tdengine.NewTarget()
+func initProgramOptions() (*iotdb.LoadingOptions, load.BenchmarkRunner, *load.BenchmarkRunnerConfig) {
+	target := iotdb.NewTarget()
 	loaderConf := load.BenchmarkRunnerConfig{}
 	loaderConf.AddToFlagSet(pflag.CommandLine)
 	target.TargetSpecificFlags("", pflag.CommandLine)
@@ -31,7 +31,7 @@ func initProgramOptions() (*tdengine.LoadingOptions, load.BenchmarkRunner, *load
 	if err := viper.Unmarshal(&loaderConf); err != nil {
 		panic(fmt.Errorf("unable to decode config: %s", err))
 	}
-	opts := tdengine.LoadingOptions{}
+	opts := iotdb.LoadingOptions{}
 	viper.SetTypeByDefaultValue(true)
 	opts.Host = viper.GetString("host")
 	opts.Port = viper.GetString("port")
@@ -53,7 +53,7 @@ func main() {
 		go profileCPUAndMem(opts.ProfileFile)
 	}
 
-	benchmark, err := tdengine.NewBenchmark(loaderConf.DBName, opts, &source.DataSourceConfig{
+	benchmark, err := iotdb.NewBenchmark(loaderConf.DBName, opts, &source.DataSourceConfig{
 		Type: source.FileDataSourceType,
 		File: &source.FileDataSourceConfig{Location: loaderConf.FileName},
 	})
