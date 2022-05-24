@@ -78,12 +78,10 @@ func (p *processor) processCSI(hypertable string, rows []*insertData) uint64 {
 	tagRows, dataRows, numMetrics := p.splitTagsAndMetrics(rows, colLen)
 
 	sqls := make([]string, len(rows))
-	tagVals := p.insertTags(tagRows)
-	for i, tagvals := range tagVals {
-		fields := strings.Join(tableCols[hypertable], ",") + "," + strings.Join(tableCols[tagsKey], ",")
-
-		sql := fmt.Sprintf("insert into root.%s.%s (timestamp, %s) values (%s,%s)",
-			p.dbName, hypertable, fields, dataRows[i], tagvals)
+	for i, tagvals := range tagRows {
+		sql := fmt.Sprintf("insert into root.%s.%s.%s (timestamp, %s) values (%s)",
+			p.dbName, hypertable, strings.Join(tagvals, "."),
+			strings.Join(tableCols[hypertable], ","), dataRows[i])
 
 		sqls[i] = sql
 
@@ -93,20 +91,6 @@ func (p *processor) processCSI(hypertable string, rows []*insertData) uint64 {
 	p.session.ExecuteBatchStatement(sqls)
 
 	return numMetrics
-}
-
-func (p *processor) insertTags(tagRows [][]string) []string {
-	tagCols := tableCols[tagsKey]
-	values := make([]string, 0)
-	commonTagsLen := len(tagCols)
-
-	for _, val := range tagRows {
-		sqlValues := convertValsToBasedOnType(val[:commonTagsLen], p.opts.TagColumnTypes[:commonTagsLen], "'", "NULL")
-
-		values = append(values, strings.Join(sqlValues, ","))
-	}
-
-	return values
 }
 
 func (p *processor) splitTagsAndMetrics(rows []*insertData, dataCols int) ([][]string, []string, uint64) {
@@ -132,23 +116,4 @@ func (p *processor) splitTagsAndMetrics(rows []*insertData, dataCols int) ([][]s
 	}
 
 	return tagRows, dataRows, numMetrics
-}
-
-func convertValsToBasedOnType(values []string, types []string, quotemark string, null string) []string {
-	sqlVals := make([]string, len(values))
-	for i, val := range values {
-		if val == "" {
-			sqlVals[i] = null
-			continue
-		}
-
-		switch types[i] {
-		case "string":
-			sqlVals[i] = quotemark + val + quotemark
-		default:
-			sqlVals[i] = val
-		}
-	}
-
-	return sqlVals
 }
