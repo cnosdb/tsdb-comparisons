@@ -9,22 +9,22 @@ import (
 	"github.com/spf13/pflag"
 )
 
-type tdengineTarget struct {
+type iotdbTarget struct {
 }
 
 func NewTarget() targets.ImplementedTarget {
-	return &tdengineTarget{}
+	return &iotdbTarget{}
 }
 
-func (t *tdengineTarget) TargetName() string {
+func (t *iotdbTarget) TargetName() string {
 	return constants.FormatIOTDB
 }
 
-func (t *tdengineTarget) Serializer() serialize.PointSerializer {
+func (t *iotdbTarget) Serializer() serialize.PointSerializer {
 	return &Serializer{}
 }
 
-func (t *tdengineTarget) Benchmark(
+func (t *iotdbTarget) Benchmark(
 	targetDB string, dataSourceConfig *source.DataSourceConfig, v *viper.Viper,
 ) (targets.Benchmark, error) {
 	var loadingOptions LoadingOptions
@@ -34,9 +34,9 @@ func (t *tdengineTarget) Benchmark(
 	return NewBenchmark(targetDB, &loadingOptions, dataSourceConfig)
 }
 
-func (t *tdengineTarget) TargetSpecificFlags(flagPrefix string, flagSet *pflag.FlagSet) {
-	flagSet.String(flagPrefix+"host", "127.0.0.1", "Hostname of TimescaleDB (tdengine) instance")
-	flagSet.String(flagPrefix+"port", "6041", "Which port to connect to on the database host")
-	flagSet.String(flagPrefix+"user", "root", "User to connect to tdengine as")
-	flagSet.String(flagPrefix+"pass", "taosdata", "Password for user connecting to tdengine")
+func (t *iotdbTarget) TargetSpecificFlags(flagPrefix string, flagSet *pflag.FlagSet) {
+	flagSet.String(flagPrefix+"host", "127.0.0.1", "Hostname of iotdb instance")
+	flagSet.String(flagPrefix+"port", "6667", "Which port to connect to on the database host")
+	flagSet.String(flagPrefix+"user", "root", "User to connect to iotdb as")
+	flagSet.String(flagPrefix+"pass", "root", "Password for user connecting to iotdb")
 }
