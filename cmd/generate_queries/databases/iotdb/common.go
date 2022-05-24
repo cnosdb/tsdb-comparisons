@@ -14,12 +14,12 @@ type BaseGenerator struct {
 
 // GenerateEmptyQuery returns an empty query.TDengine.
 func (g *BaseGenerator) GenerateEmptyQuery() query.Query {
-	return query.NewTDengine()
+	return query.NewIotDB()
 }
 
 // fillInQuery fills the query struct with data.
 func (g *BaseGenerator) fillInQuery(qi query.Query, humanLabel, humanDesc, sql string) {
-	q := qi.(*query.TDengine)
+	q := qi.(*query.IoTDB)
 	q.HumanLabel = []byte(humanLabel)
 	q.HumanDescription = []byte(humanDesc)
 	q.SqlQuery = []byte(sql)
