@@ -1,9 +1,11 @@
 package iotdb
 
 import (
+	"container/list"
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/apache/iotdb-client-go/client"
@@ -19,7 +21,40 @@ type processor struct {
 	opts   *LoadingOptions
 	dbName string
 
-	session *client.Session
+	pool *sessionPool
+}
+
+type sessionPool struct {
+	lock   sync.Locker
+	pool   *list.List
+	config *client.Config
+}
+
+func (p *sessionPool) Get() *client.Session {
+	p.lock.Lock()
+	defer p.lock.Unlock()
+
+	elm := p.pool.Front()
+	if elm != nil {
+		p.pool.Remove(elm)
+
+		return elm.Value.(*client.Session)
+	}
+
+	session := client.NewSession(p.config)
+	if err := session.Open(false, 0); err != nil {
+		fmt.Printf("Connect to iotdb %+v failed %v\n", p.config, err)
+		panic("")
+	}
+
+	return session
+}
+
+func (p *sessionPool) Put(client *client.Session) {
+	p.lock.Lock()
+	defer p.lock.Unlock()
+
+	p.pool.PushBack(client)
 }
 
 func newProcessor(opts *LoadingOptions, dbName string) *processor {
@@ -30,15 +65,14 @@ func newProcessor(opts *LoadingOptions, dbName string) *processor {
 }
 
 func (p *processor) Init(_ int, doLoad, hashWorkers bool) {
-	config := &client.Config{
-		Host:     p.opts.Host,
-		Port:     p.opts.Port,
-		UserName: p.opts.User,
-		Password: p.opts.Pass}
-	p.session = client.NewSession(config)
-	if err := p.session.Open(false, 0); err != nil {
-		fmt.Printf("Connect to iotdb %+v failed %v\n", config, err)
-		panic("")
+	p.pool = &sessionPool{
+		config: &client.Config{
+			Host:     p.opts.Host,
+			Port:     p.opts.Port,
+			UserName: p.opts.User,
+			Password: p.opts.Pass},
+
+		pool: list.New(),
 	}
 }
 
@@ -88,7 +122,9 @@ func (p *processor) processCSI(hypertable string, rows []*insertData) uint64 {
 		//fmt.Printf("===%s\n", sql)
 	}
 
-	p.session.ExecuteBatchStatement(sqls)
+	session := p.pool.Get()
+	session.ExecuteBatchStatement(sqls)
+	p.pool.Put(session)
 
 	return numMetrics
 }
