@@ -25,7 +25,7 @@ type processor struct {
 }
 
 type sessionPool struct {
-	lock   sync.Locker
+	lock   sync.Mutex
 	pool   *list.List
 	config *client.Config
 }

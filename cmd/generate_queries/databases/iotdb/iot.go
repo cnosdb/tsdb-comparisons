@@ -161,7 +161,7 @@ func (i *IoT) TrucksWithLongDailySessions(qi query.Query) {
 
 // AvgVsProjectedFuelConsumption calculates average and projected fuel consumption per fleet.
 func (i *IoT) AvgVsProjectedFuelConsumption(qi query.Query) {
-	sql := `select avg(fuel_consumption), avg(nominal_fuel_consumption) from root.** group by level=4`
+	sql := `select avg(fuel_consumption), avg(nominal_fuel_consumption) from root.** group by level=4;`
 	humanLabel := "iotdb average vs projected fuel consumption per fleet"
 	humanDesc := humanLabel
 	i.fillInQuery(qi, humanLabel, humanDesc, sql)
