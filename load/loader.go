@@ -3,14 +3,15 @@ package load
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/cnosdb/tsdb-comparisons/pkg/targets"
 	"io/ioutil"
 	"log"
 	"math/rand"
 	"sync"
 	"sync/atomic"
 	"time"
-	
+
+	"github.com/cnosdb/tsdb-comparisons/pkg/targets"
+
 	"github.com/cnosdb/tsdb-comparisons/load/insertstrategy"
 	"github.com/spf13/pflag"
 )
@@ -90,9 +91,9 @@ func GetBenchmarkRunner(c BenchmarkRunnerConfig) BenchmarkRunner {
 	if loader.BatchSize == 0 {
 		loader.BatchSize = defaultBatchSize
 	}
-	
+
 	loader.initialRand = rand.New(rand.NewSource(loader.Seed))
-	
+
 	var err error
 	if c.InsertIntervals == "" {
 		loader.sleepRegulator = insertstrategy.NoWait()
@@ -105,7 +106,7 @@ func GetBenchmarkRunner(c BenchmarkRunnerConfig) BenchmarkRunner {
 	if !c.NoFlowControl {
 		return &loader
 	}
-	
+
 	if c.ChannelCapacity == DefaultChannelCapacityFlagVal {
 		if c.HashWorkers {
 			loader.ChannelCapacity = defaultChannelCapacityPerWorker
@@ -113,7 +114,7 @@ func GetBenchmarkRunner(c BenchmarkRunnerConfig) BenchmarkRunner {
 			loader.ChannelCapacity = c.Workers * defaultChannelCapacityPerWorker
 		}
 	}
-	
+
 	return &noFlowBenchmarkRunner{loader}
 }
 
@@ -128,7 +129,7 @@ func (l *CommonBenchmarkRunner) preRun(b targets.Benchmark) (*sync.WaitGroup, *t
 		cleanupFn := l.useDBCreator(b.GetDBCreator())
 		defer cleanupFn()
 	}
-	
+
 	if l.ReportingPeriod.Nanoseconds() > 0 {
 		go l.report(l.ReportingPeriod)
 	}
@@ -157,7 +158,7 @@ func (l *CommonBenchmarkRunner) saveTestResult(took time.Duration, start time.Ti
 	if l.rowCnt > 0 {
 		totals["rowRate"] = rowRate
 	}
-	
+
 	testResult := LoaderTestResult{
 		ResultFormatVersion: LoaderTestResultVersion,
 		RunnerConfig:        l.BenchmarkRunnerConfig,
@@ -166,13 +167,13 @@ func (l *CommonBenchmarkRunner) saveTestResult(took time.Duration, start time.Ti
 		DurationMillis:      took.Milliseconds(),
 		Totals:              totals,
 	}
-	
+
 	_, _ = fmt.Printf("Saving results json file to %s\n", l.BenchmarkRunnerConfig.ResultsFile)
 	file, err := json.MarshalIndent(testResult, "", " ")
 	if err != nil {
 		log.Fatal(err)
 	}
-	
+
 	err = ioutil.WriteFile(l.BenchmarkRunnerConfig.ResultsFile, file, 0644)
 	if err != nil {
 		log.Fatal(err)
@@ -190,23 +191,23 @@ func (l *CommonBenchmarkRunner) RunBenchmark(b targets.Benchmark) {
 		numChannels = 1
 		capacity = l.Workers
 	}
-	
+
 	channels := l.createChannels(numChannels, capacity)
-	
+
 	// Launch all worker processes in background
 	for i := uint(0); i < l.Workers; i++ {
 		go l.work(b, wg, channels[i%numChannels], i)
 	}
-	
+
 	// Start scan process - actual data read process
 	scanWithFlowControl(channels, l.BatchSize, l.Limit, b.GetDataSource(), b.GetBatchFactory(), b.GetPointIndexer(uint(len(channels))))
 	// After scan process completed (no more data to come) - begin shutdown process
-	
+
 	// Close all communication channels to/from workers
 	for _, c := range channels {
 		c.close()
 	}
-	
+
 	l.postRun(wg, start)
 }
 
@@ -216,7 +217,7 @@ func (l *CommonBenchmarkRunner) RunBenchmark(b targets.Benchmark) {
 func (l *CommonBenchmarkRunner) useDBCreator(dbc targets.DBCreator) func() {
 	// Empty function to 'defer' from caller
 	closeFn := func() {}
-	
+
 	// DBCreator should still be Init'd even if -do-create-db is false since
 	// it can initialize the connecting session
 	dbc.Init()
@@ -225,13 +226,14 @@ func (l *CommonBenchmarkRunner) useDBCreator(dbc targets.DBCreator) func() {
 		case targets.DBCreatorCloser:
 			closeFn = dbcc.Close
 		}
-		
+
 		// Check whether required DB already exists
-		exists := dbc.DBExists(l.DBName)
-		if exists && l.DoAbortOnExist {
-			panic(fmt.Sprintf(errDBExistsFmt, l.DBName))
-		}
-		
+		//exists := dbc.DBExists(l.DBName)
+		//if exists && l.DoAbortOnExist {
+		//	panic(fmt.Sprintf(errDBExistsFmt, l.DBName))
+		//}
+		exists := true
+
 		// Create required DB if need be
 		// In case DB already exists - delete it
 		if l.DoCreateDB {
@@ -246,7 +248,7 @@ func (l *CommonBenchmarkRunner) useDBCreator(dbc targets.DBCreator) func() {
 				panic(err)
 			}
 		}
-		
+
 		switch dbcp := dbc.(type) {
 		case targets.DBCreatorPost:
 			err := dbcp.PostCreateDB(l.DBName)
@@ -267,17 +269,17 @@ func (l *CommonBenchmarkRunner) createChannels(numChannels, capacity uint) []*du
 	for i := uint(0); i < numChannels; i++ {
 		channels = append(channels, newDuplexChannel(int(capacity)))
 	}
-	
+
 	return channels
 }
 
 // work is the processing function for each worker in the loader
 func (l *CommonBenchmarkRunner) work(b targets.Benchmark, wg *sync.WaitGroup, c *duplexChannel, workerNum uint) {
-	
+
 	// Prepare processor
 	proc := b.GetProcessor()
 	proc.Init(int(workerNum), l.DoLoad, l.HashWorkers)
-	
+
 	// Process batches coming from duplexChannel.toWorker queue
 	// and send ACKs into duplexChannel.toScanner queue
 	for batch := range c.toWorker {
@@ -288,13 +290,13 @@ func (l *CommonBenchmarkRunner) work(b targets.Benchmark, wg *sync.WaitGroup, c 
 		c.sendToScanner()
 		l.timeToSleep(workerNum, startedWorkAt)
 	}
-	
+
 	// Close proc if necessary
 	switch c := proc.(type) {
 	case targets.ProcessorCloser:
 		c.Close(l.DoLoad)
 	}
-	
+
 	wg.Done()
 }
 
@@ -321,12 +323,12 @@ func (l *CommonBenchmarkRunner) report(period time.Duration) {
 	prevTime := start
 	prevColCount := uint64(0)
 	prevRowCount := uint64(0)
-	
+
 	printFn("time,per. metric/s,metric total,overall metric/s,per. row/s,row total,overall row/s\n")
 	for now := range time.NewTicker(period).C {
 		cCount := atomic.LoadUint64(&l.metricCnt)
 		rCount := atomic.LoadUint64(&l.rowCnt)
-		
+
 		sinceStart := now.Sub(start)
 		took := now.Sub(prevTime)
 		colrate := float64(cCount-prevColCount) / float64(took.Seconds())
@@ -338,7 +340,7 @@ func (l *CommonBenchmarkRunner) report(period time.Duration) {
 		} else {
 			printFn("%d,%0.2f,%E,%0.2f,-,-,-\n", now.Unix(), colrate, float64(cCount), overallColRate)
 		}
-		
+
 		prevColCount = cCount
 		prevRowCount = rCount
 		prevTime = now

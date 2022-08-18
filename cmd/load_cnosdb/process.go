@@ -3,9 +3,10 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"github.com/cnosdb/tsdb-comparisons/pkg/targets"
 	"time"
-	
+
+	"github.com/cnosdb/tsdb-comparisons/pkg/targets"
+
 	"github.com/valyala/fasthttp"
 )
 
@@ -45,7 +46,7 @@ func (p *processor) Close(_ bool) {
 
 func (p *processor) ProcessBatch(b targets.Batch, doLoad bool) (uint64, uint64) {
 	batch := b.(*batch)
-	
+
 	// Write the batch: try until backoff is not needed.
 	if doLoad {
 		var err error
@@ -60,7 +61,7 @@ func (p *processor) ProcessBatch(b targets.Batch, doLoad bool) (uint64, uint64) 
 			} else {
 				_, err = p.httpWriter.WriteLineProtocol(batch.buf.Bytes(), false)
 			}
-			
+
 			if err == errBackoff {
 				p.backingOffChan <- true
 				time.Sleep(backoff)
@@ -75,7 +76,7 @@ func (p *processor) ProcessBatch(b targets.Batch, doLoad bool) (uint64, uint64) 
 	}
 	metricCnt := batch.metrics
 	rowCnt := batch.rows
-	
+
 	// Return the batch buffer to the pool.
 	batch.buf.Reset()
 	bufPool.Put(batch.buf)
