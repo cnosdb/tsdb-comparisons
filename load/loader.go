@@ -33,6 +33,7 @@ var (
 // BenchmarkRunnerConfig contains all the configuration information required for running BenchmarkRunner.
 type BenchmarkRunnerConfig struct {
 	DBName          string        `yaml:"db-name" mapstructure:"db-name" json:"db-name"`
+	Auth            string        `yaml:"user_id" mapstructure:"user_id" json:"user_id"`
 	BatchSize       uint          `yaml:"batch-size" mapstructure:"batch-size" json:"batch-size"`
 	Workers         uint          `yaml:"workers" mapstructure:"workers" json:"workers"`
 	Limit           uint64        `yaml:"limit" mapstructure:"limit" json:"limit"`
@@ -53,6 +54,7 @@ type BenchmarkRunnerConfig struct {
 // AddToFlagSet adds command line flags needed by the BenchmarkRunnerConfig to the flag set.
 func (c BenchmarkRunnerConfig) AddToFlagSet(fs *pflag.FlagSet) {
 	fs.String("db-name", "benchmark", "Name of database")
+	fs.String("user_id", "123", "auth of database")
 	fs.Uint("batch-size", defaultBatchSize, "Number of items to batch together in a single insert")
 	fs.Uint("workers", 1, "Number of parallel clients inserting")
 	fs.Uint64("limit", 0, "Number of items to insert (0 = all of them).")

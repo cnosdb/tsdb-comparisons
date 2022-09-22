@@ -5,7 +5,6 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"net/url"
 	"time"
 
 	"github.com/valyala/fasthttp"
@@ -36,6 +35,8 @@ type HTTPWriterConfig struct {
 	// Name of the target database into which points will be written.
 	Database string
 
+	Auth string
+
 	// Debug label for more informative errors.
 	DebugInfo string
 }
@@ -56,7 +57,7 @@ func NewHTTPWriter(c HTTPWriterConfig, consistency string) *HTTPWriter {
 		},
 
 		c:   c,
-		url: []byte(c.Host + "/write/line_protocol?consistency=" + consistency + "&db=" + url.QueryEscape(c.Database)),
+		url: []byte(c.Host + "/write"),
 	}
 }
 
@@ -69,6 +70,8 @@ func (w *HTTPWriter) initializeReq(req *fasthttp.Request, body []byte, isGzip bo
 	req.Header.SetContentTypeBytes(textPlain)
 	req.Header.SetMethodBytes(methodPost)
 	req.Header.SetRequestURIBytes(w.url)
+	req.Header.Add("database", w.c.Database)
+	req.Header.Add("user_id", w.c.Auth)
 	if isGzip {
 		req.Header.Add(headerContentEncoding, headerGzip)
 	}
@@ -83,7 +86,7 @@ func (w *HTTPWriter) executeReq(req *fasthttp.Request, resp *fasthttp.Response) 
 		sc := resp.StatusCode()
 		if sc == 500 && backpressurePred(resp.Body()) {
 			err = errBackoff
-		} else if sc != fasthttp.StatusNoContent {
+		} else if sc != fasthttp.StatusOK {
 			err = fmt.Errorf("[DebugInfo: %s] Invalid write response (status %d): %s", w.c.DebugInfo, sc, resp.Body())
 		}
 	}
