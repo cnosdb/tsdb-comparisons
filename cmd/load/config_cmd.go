@@ -16,7 +16,7 @@ import (
 const (
 	dataSourceFlag = "data-source"
 	targetDbFlag   = "target"
-	
+
 	writeConfigTo = "./config.yaml"
 )
 
@@ -26,7 +26,7 @@ func initConfigCMD() *cobra.Command {
 		Short: "Generate example config yaml file and save it to" + writeConfigTo,
 		Run:   config,
 	}
-	
+
 	cmd.PersistentFlags().String(
 		dataSourceFlag,
 		source.SimulatorDataSourceType,
@@ -38,11 +38,11 @@ func initConfigCMD() *cobra.Command {
 func config(cmd *cobra.Command, _ []string) {
 	dataSourceSelected := readFlag(cmd, dataSourceFlag)
 	targetSelected := readFlag(cmd, targetDbFlag)
-	
+
 	exampleConfig := getEmptyConfigWithoutDbSpecifics(targetSelected, dataSourceSelected)
 	target := initializers.GetTarget(targetSelected)
 	v := setExampleConfigInViper(exampleConfig, target)
-	
+
 	if err := v.WriteConfigAs(writeConfigTo); err != nil {
 		panic(fmt.Errorf("could not write sample config to file %s: %v", writeConfigTo, err))
 	}
@@ -79,27 +79,27 @@ func readFlag(cmd *cobra.Command, flag string) string {
 func setExampleConfigInViper(confWithoutDBSpecifics *LoadConfig, t targets.ImplementedTarget) *viper.Viper {
 	v := viper.New()
 	v.SetConfigType("yaml")
-	
+
 	// convert LoaderConfig to yaml to load into viper
 	configInBytes, err := yaml.Marshal(confWithoutDBSpecifics)
 	if err != nil {
 		panic(fmt.Errorf("could not convert example config to yaml: %v", err))
 	}
-	
+
 	if err := v.ReadConfig(bytes.NewBuffer(configInBytes)); err != nil {
 		panic(fmt.Errorf("could not load example config in viper: %v", err))
 	}
-	
+
 	// get loader.runner and data-source flags
 	// and remove either data-source.file or data-source.simulator depending on selected
 	// data source type
 	loadCmdFlagSet := cleanDataSourceFlags(confWithoutDBSpecifics.DataSource.Type, loadCmdFlags())
-	
+
 	// bind loader.runner and data-source flags
 	if err := v.BindPFlags(loadCmdFlagSet); err != nil {
 		panic(fmt.Errorf("could not bind loader.runner and data-source flags in viper: %v", err))
 	}
-	
+
 	// get target specific flags
 	flagSet := pflag.NewFlagSet("", pflag.ContinueOnError)
 	t.TargetSpecificFlags("loader.db-specific.", flagSet)
@@ -107,7 +107,7 @@ func setExampleConfigInViper(confWithoutDBSpecifics *LoadConfig, t targets.Imple
 	if err := v.BindPFlags(flagSet); err != nil {
 		panic(fmt.Errorf("could not bind target specific config flags in viper: %v", err))
 	}
-	
+
 	return v
 }
 

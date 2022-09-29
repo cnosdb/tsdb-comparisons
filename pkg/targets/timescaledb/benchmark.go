@@ -21,7 +21,7 @@ func NewBenchmark(dbName string, opts *LoadingOptions, dataSourceConfig *source.
 		}
 		ds = newSimulationDataSource(simulator)
 	}
-	
+
 	return &benchmark{
 		opts:   opts,
 		ds:     ds,

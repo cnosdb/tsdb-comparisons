@@ -4,7 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"strings"
-	
+
 	"github.com/cnosdb/tsdb-comparisons/pkg/data"
 	"github.com/cnosdb/tsdb-comparisons/pkg/data/usecases/common"
 	"github.com/cnosdb/tsdb-comparisons/pkg/targets"
@@ -53,7 +53,7 @@ func (b *batch) Append(item data.LoadedPoint) {
 		return
 	}
 	b.metrics += uint64(len(strings.Split(args[1], ",")))
-	
+
 	b.buf.Write(that)
 	b.buf.Write(newLine)
 }

@@ -12,7 +12,7 @@ import (
 	"strings"
 	"sync"
 	"time"
-	
+
 	"github.com/blagojts/viper"
 	"github.com/cnosdb/tsdb-comparisons/internal/utils"
 	"github.com/cnosdb/tsdb-comparisons/load"
@@ -57,29 +57,29 @@ func init() {
 	config.AddToFlagSet(pflag.CommandLine)
 	target.TargetSpecificFlags("", pflag.CommandLine)
 	var csvDaemonURLs string
-	
+
 	pflag.Parse()
-	
+
 	err := utils.SetupConfigFile()
-	
+
 	if err != nil {
 		panic(fmt.Errorf("fatal error config file: %s", err))
 	}
-	
+
 	if err := viper.Unmarshal(&config); err != nil {
 		panic(fmt.Errorf("unable to decode config: %s", err))
 	}
-	
+
 	csvDaemonURLs = viper.GetString("urls")
 	replicationFactor = viper.GetInt("replication-factor")
 	consistency = viper.GetString("consistency")
 	backoff = viper.GetDuration("backoff")
 	useGzip = viper.GetBool("gzip")
-	
+
 	if _, ok := consistencyChoices[consistency]; !ok {
 		log.Fatalf("invalid consistency settings")
 	}
-	
+
 	daemonURLs = strings.Split(csvDaemonURLs, ",")
 	if len(daemonURLs) == 0 {
 		log.Fatal("missing 'urls' flag")
@@ -116,6 +116,6 @@ func main() {
 			return bytes.NewBuffer(make([]byte, 0, 4*1024*1024))
 		},
 	}
-	
+
 	loader.RunBenchmark(&benchmark{})
 }

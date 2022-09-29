@@ -2,7 +2,7 @@ package timescaledb
 
 import (
 	"time"
-	
+
 	"github.com/cnosdb/tsdb-comparisons/cmd/generate_queries/uses/iot"
 	"github.com/cnosdb/tsdb-comparisons/cmd/generate_queries/utils"
 	"github.com/cnosdb/tsdb-comparisons/pkg/query"
@@ -34,15 +34,15 @@ func (g *BaseGenerator) fillInQuery(qi query.Query, humanLabel, humanDesc, table
 // NewIoT creates a new iot use case query generator.
 func (g *BaseGenerator) NewIoT(start, end time.Time, scale int) (utils.QueryGenerator, error) {
 	core, err := iot.NewCore(start, end, scale)
-	
+
 	if err != nil {
 		return nil, err
 	}
-	
+
 	iot := &IoT{
 		BaseGenerator: g,
 		Core:          core,
 	}
-	
+
 	return iot, nil
 }

@@ -3,7 +3,7 @@ package inputs
 import (
 	"fmt"
 	"testing"
-	
+
 	"github.com/cnosdb/tsdb-comparisons/pkg/data/usecases/common"
 	"github.com/cnosdb/tsdb-comparisons/pkg/targets/constants"
 )
@@ -19,13 +19,13 @@ func TestBaseConfigValidate(t *testing.T) {
 		Format: constants.FormatTimescaleDB,
 		Use:    common.UseCaseIoT,
 	}
-	
+
 	// Test Scale validation
 	err := c.Validate()
 	if err != nil {
 		t.Errorf("unexpected error with scale 1: %v", err)
 	}
-	
+
 	c.Scale = 0
 	err = c.Validate()
 	if err == nil {
@@ -34,7 +34,7 @@ func TestBaseConfigValidate(t *testing.T) {
 		t.Errorf("incorrect error for scale of 0: got\n%s\nwant\n%s", got, common.ErrScaleIsZero)
 	}
 	c.Scale = 1
-	
+
 	// Test Seed validation
 	err = c.Validate()
 	if err != nil {
@@ -43,7 +43,7 @@ func TestBaseConfigValidate(t *testing.T) {
 	if c.Seed != 123 {
 		t.Errorf("seed was not 123 after validation")
 	}
-	
+
 	c.Seed = 0
 	err = c.Validate()
 	if err != nil {
@@ -52,9 +52,9 @@ func TestBaseConfigValidate(t *testing.T) {
 	if c.Seed == 0 {
 		t.Errorf("seed was not set to nanosecond when 0")
 	}
-	
+
 	// Test Format validation
-	
+
 	c.Format = "unknown type"
 	err = c.Validate()
 	if err == nil {
@@ -66,14 +66,14 @@ func TestBaseConfigValidate(t *testing.T) {
 		}
 	}
 	c.Format = constants.FormatTimescaleDB
-	
+
 	// Test Use validation
 	c.Use = common.UseCaseIoT
 	err = c.Validate()
 	if err != nil {
 		t.Errorf("unexpected error with Use '%s': %v", common.UseCaseIoT, err)
 	}
-	
+
 	c.Use = "bad use"
 	err = c.Validate()
 	if err == nil {

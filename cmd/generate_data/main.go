@@ -17,7 +17,7 @@ import (
 	"os"
 	"os/signal"
 	"runtime/pprof"
-	
+
 	"github.com/blagojts/viper"
 	"github.com/cnosdb/tsdb-comparisons/internal/inputs"
 	"github.com/cnosdb/tsdb-comparisons/internal/utils"
@@ -35,25 +35,25 @@ var (
 // Parse args:
 func init() {
 	config.AddToFlagSet(pflag.CommandLine)
-	
+
 	pflag.String("profile-file", "", "File to which to write go profiling data")
-	
+
 	pflag.Parse()
-	
+
 	err := utils.SetupConfigFile()
-	
+
 	if err != nil {
 		panic(fmt.Errorf("fatal error config file: %s", err))
 	}
-	
+
 	if err := viper.Unmarshal(&config.BaseConfig); err != nil {
 		panic(fmt.Errorf("unable to decode base config: %s", err))
 	}
-	
+
 	if err := viper.Unmarshal(&config); err != nil {
 		panic(fmt.Errorf("unable to decode config: %s", err))
 	}
-	
+
 	profileFile = viper.GetString("profile-file")
 }
 
@@ -75,25 +75,25 @@ func startMemoryProfile(profileFile string) func() {
 	if err != nil {
 		log.Fatal("could not create memory profile: ", err)
 	}
-	
+
 	stop := func() {
 		if err := pprof.WriteHeapProfile(f); err != nil {
 			log.Fatal("could not write memory profile: ", err)
 		}
 		f.Close()
 	}
-	
+
 	// Catches ctrl+c signals
 	go func() {
 		c := make(chan os.Signal, 1)
 		signal.Notify(c, os.Interrupt)
 		<-c
-		
+
 		fmt.Fprintln(os.Stderr, "\ncaught interrupt, stopping profile")
 		stop()
-		
+
 		os.Exit(0)
 	}()
-	
+
 	return stop
 }

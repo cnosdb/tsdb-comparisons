@@ -34,7 +34,7 @@ func (s *Serializer) Serialize(p *data.Point, w io.Writer) error {
 	if err != nil {
 		return err
 	}
-	
+
 	// Field row second
 	buf = make([]byte, 0, 256)
 	buf = append(buf, p.MeasurementName()...)

@@ -1,0 +1,90 @@
+syntax = "proto3";
+package kv_service;
+option go_package = "proto";
+
+message PingRequest {
+  uint64 version = 1;
+  bytes body = 2;
+}
+
+message PingResponse {
+  uint64 version = 1;
+  bytes body = 2;
+}
+
+message Tag {
+  bytes key = 1; // tag key utf-8 bytes
+  bytes value = 2; // tag value utf-8 bytes
+}
+
+enum FieldType {
+  Float = 0;
+  Integer = 1;
+  Unsigned = 2;
+  Boolean = 3;
+  String = 5;
+}
+
+message FieldInfo {
+  FieldType field_type = 1;
+  bytes name = 2; // field name utf-8 bytes
+  uint64 id = 3;
+}
+
+message AddSeriesRpcRequest {
+  uint64 version = 1;
+  uint64 series_id = 2;
+  repeated Tag tags = 3;
+  repeated FieldInfo fields = 4;
+}
+
+message AddSeriesRpcResponse {
+  uint64 version = 1;
+  uint64 series_id = 2;
+  repeated Tag tags = 3;
+  repeated FieldInfo fields = 4;
+}
+
+message GetSeriesInfoRpcRequest {
+  uint64 protocol_version = 1;
+  uint64 series_id = 2;
+}
+
+message GetSeriesInfoRpcResponse {
+  uint64 version = 1;
+  uint64 series_id = 2;
+  repeated Tag tags = 3;
+  repeated FieldInfo fields = 4;
+}
+
+message WriteRowsRpcRequest {
+  uint64 version = 1;
+  bytes rows = 2; // flatbuffers bytes ( models::Rows )
+}
+
+message WriteRowsRpcResponse {
+  uint64 version = 1;
+  bytes rows = 2; // flatbuffers bytes ( models::Rows )
+}
+
+message WritePointsRpcRequest {
+  uint64 version = 1;
+  bytes points = 2; // flatbuffers bytes ( models::Points )
+}
+
+message WritePointsRpcResponse {
+  uint64 version = 1;
+  bytes points = 2; // flatbuffers bytes ( models::Points )
+}
+
+service TSKVService {
+  rpc Ping(PingRequest) returns (PingResponse);
+
+  rpc AddSeries(AddSeriesRpcRequest) returns (AddSeriesRpcResponse) {};
+
+  rpc GetSeriesInfo(GetSeriesInfoRpcRequest) returns (GetSeriesInfoRpcResponse) {};
+
+  rpc WriteRows(stream WriteRowsRpcRequest) returns (stream WriteRowsRpcResponse) {};
+
+  rpc WritePoints(stream WritePointsRpcRequest) returns (stream WritePointsRpcResponse) {};
+}

@@ -47,7 +47,7 @@ func TestNewSubsystemMeasurement(t *testing.T) {
 			numDistros: 3,
 		},
 	}
-	
+
 	for _, c := range cases {
 		now := time.Now()
 		m := NewSubsystemMeasurement(now, c.numDistros)
@@ -70,11 +70,11 @@ func TestNewSubsystemMeasurementWithDistributionMakers(t *testing.T) {
 	if !m.Timestamp.Equal(now) {
 		t.Errorf("incorrect timestamp set: got %v want %v", m.Timestamp, now)
 	}
-	
+
 	if got := len(m.Distributions); got != len(makers) {
 		t.Errorf("incorrect number of distros: got %d want %d", got, len(makers))
 	}
-	
+
 	for i := 0; i < 2; i++ {
 		md := m.Distributions[i].(*monotonicDistribution)
 		if got := md.state; got != float64(i) {
@@ -136,7 +136,7 @@ func testCommonToPoint(t *testing.T, p *data.Point, fieldVal float64) {
 	if got := string(p.MeasurementName()); got != toPointLabel {
 		t.Errorf("measurement name incorrect: got %s want %s", got, toPointLabel)
 	}
-	
+
 	for _, pointFieldVal := range p.FieldValues() {
 		switch pointFieldVal.(type) {
 		case int64:

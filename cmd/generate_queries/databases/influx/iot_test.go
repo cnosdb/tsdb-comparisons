@@ -6,7 +6,7 @@ import (
 	"net/url"
 	"testing"
 	"time"
-	
+
 	"github.com/cnosdb/tsdb-comparisons/pkg/query"
 )
 
@@ -41,7 +41,7 @@ func TestLastLocByTruck(t *testing.T) {
 		{
 			desc:  "one truck",
 			input: 1,
-			
+
 			expectedHumanLabel: "Influx last location by specific truck",
 			expectedHumanDesc:  "Influx last location by specific truck: random    1 trucks",
 			expectedQuery: `SELECT "name", "driver", "latitude", "longitude" 
@@ -53,7 +53,7 @@ func TestLastLocByTruck(t *testing.T) {
 		{
 			desc:  "three truck",
 			input: 3,
-			
+
 			expectedHumanLabel: "Influx last location by specific truck",
 			expectedHumanDesc:  "Influx last location by specific truck: random    3 trucks",
 			expectedQuery: `SELECT "name", "driver", "latitude", "longitude" 
@@ -63,13 +63,13 @@ func TestLastLocByTruck(t *testing.T) {
 		LIMIT 1`,
 		},
 	}
-	
+
 	testFunc := func(i *IoT, c IoTTestCase) query.Query {
 		q := i.GenerateEmptyQuery()
 		i.LastLocByTruck(q, c.input)
 		return q
 	}
-	
+
 	runIoTTestCases(t, testFunc, time.Now(), time.Now(), cases)
 }
 
@@ -77,7 +77,7 @@ func TestLastLocPerTruck(t *testing.T) {
 	cases := []IoTTestCase{
 		{
 			desc: "default",
-			
+
 			expectedHumanLabel: "Influx last location per truck",
 			expectedHumanDesc:  "Influx last location per truck",
 			expectedQuery: "/query?q=SELECT+%22latitude%22%2C+%22longitude%22+%0A%09%09" +
@@ -85,7 +85,7 @@ func TestLastLocPerTruck(t *testing.T) {
 				"GROUP+BY+%22name%22%2C%22driver%22+%0A%09%09ORDER+BY+%22time%22+%0A%09%09LIMIT+1",
 		},
 	}
-	
+
 	for _, c := range cases {
 		rand.Seed(123)
 		b := BaseGenerator{}
@@ -93,12 +93,12 @@ func TestLastLocPerTruck(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Error while creating iot generator")
 		}
-		
+
 		g := ig.(*IoT)
-		
+
 		q := g.GenerateEmptyQuery()
 		g.LastLocPerTruck(q)
-		
+
 		verifyQuery(t, q, c.expectedHumanLabel, c.expectedHumanDesc, c.expectedQuery)
 	}
 }
@@ -107,7 +107,7 @@ func TestTrucksWithLowFuel(t *testing.T) {
 	cases := []IoTTestCase{
 		{
 			desc: "default",
-			
+
 			expectedHumanLabel: "Influx trucks with low fuel",
 			expectedHumanDesc:  "Influx trucks with low fuel: under 10 percent",
 			expectedQuery: "/query?q=SELECT+%22name%22%2C+%22driver%22%2C+%22fuel_state%22+%0A%09%09" +
@@ -115,7 +115,7 @@ func TestTrucksWithLowFuel(t *testing.T) {
 				"GROUP+BY+%22name%22+%0A%09%09ORDER+BY+%22time%22+DESC+%0A%09%09LIMIT+1",
 		},
 	}
-	
+
 	for _, c := range cases {
 		rand.Seed(123)
 		b := BaseGenerator{}
@@ -123,12 +123,12 @@ func TestTrucksWithLowFuel(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Error while creating iot generator")
 		}
-		
+
 		g := ig.(*IoT)
-		
+
 		q := g.GenerateEmptyQuery()
 		g.TrucksWithLowFuel(q)
-		
+
 		verifyQuery(t, q, c.expectedHumanLabel, c.expectedHumanDesc, c.expectedQuery)
 	}
 }
@@ -137,7 +137,7 @@ func TestTrucksWithHighLoad(t *testing.T) {
 	cases := []IoTTestCase{
 		{
 			desc: "default",
-			
+
 			expectedHumanLabel: "Influx trucks with high load",
 			expectedHumanDesc:  "Influx trucks with high load: over 90 percent",
 			expectedQuery: "/query?q=SELECT+%22name%22%2C+%22driver%22%2C+%22current_load%22%2C+%22load_capacity%22+%0A%09%09" +
@@ -147,7 +147,7 @@ func TestTrucksWithHighLoad(t *testing.T) {
 				"GROUP+BY+%22name%22+%0A%09%09ORDER+BY+%22time%22+DESC",
 		},
 	}
-	
+
 	for _, c := range cases {
 		rand.Seed(123)
 		b := BaseGenerator{}
@@ -155,12 +155,12 @@ func TestTrucksWithHighLoad(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Error while creating iot generator")
 		}
-		
+
 		g := ig.(*IoT)
-		
+
 		q := g.GenerateEmptyQuery()
 		g.TrucksWithHighLoad(q)
-		
+
 		verifyQuery(t, q, c.expectedHumanLabel, c.expectedHumanDesc, c.expectedQuery)
 	}
 }
@@ -169,10 +169,10 @@ func TestStationaryTrucks(t *testing.T) {
 	cases := []IoTTestCase{
 		{
 			desc: "default",
-			
+
 			expectedHumanLabel: "Influx stationary trucks",
 			expectedHumanDesc:  "Influx stationary trucks: with low avg velocity in last 10 minutes",
-			
+
 			expectedQuery: "/query?q=SELECT+%22name%22%2C+%22driver%22+%0A%09%09FROM%28" +
 				"SELECT+mean%28%22velocity%22%29+as+mean_velocity+%0A%09%09+FROM+%22readings%22+%0A%09%09+" +
 				"WHERE+time+%3E+%271970-01-01T00%3A36%3A22Z%27+AND+time+%3C%3D+%271970-01-01T00%3A46%3A22Z%27+%0A%09%09+" +
@@ -180,15 +180,15 @@ func TestStationaryTrucks(t *testing.T) {
 				"LIMIT+1%29+%0A%09%09WHERE+%22fleet%22+%3D+%27West%27+AND+%22mean_velocity%22+%3C+1+%0A%09%09GROUP+BY+%22name%22",
 		},
 	}
-	
+
 	for _, c := range cases {
 		b := &BaseGenerator{}
 		g := NewIoT(time.Unix(0, 0), time.Unix(0, 0).Add(time.Hour), 10, b)
-		
+
 		q := g.GenerateEmptyQuery()
 		rand.Seed(123)
 		g.StationaryTrucks(q)
-		
+
 		verifyQuery(t, q, c.expectedHumanLabel, c.expectedHumanDesc, c.expectedQuery)
 	}
 }
@@ -197,10 +197,10 @@ func TestTrucksWithLongDrivingSessions(t *testing.T) {
 	cases := []IoTTestCase{
 		{
 			desc: "default",
-			
+
 			expectedHumanLabel: "Influx trucks with longer driving sessions",
 			expectedHumanDesc:  "Influx trucks with longer driving sessions: stopped less than 20 mins in 4 hour period",
-			
+
 			expectedQuery: "/query?q=SELECT+%22name%22%2C%22driver%22+%0A%09%09FROM%28" +
 				"SELECT+count%28%2A%29+AS+ten_min+%0A%09%09+FROM%28SELECT+mean%28%22velocity%22%29+AS+mean_velocity+%0A%09%09++" +
 				"FROM+readings+%0A%09%09++" +
@@ -210,20 +210,20 @@ func TestTrucksWithLongDrivingSessions(t *testing.T) {
 				"WHERE+ten_min_mean_velocity+%3E+22",
 		},
 	}
-	
+
 	for _, c := range cases {
 		b := BaseGenerator{}
 		ig, err := b.NewIoT(time.Unix(0, 0), time.Unix(0, 0).Add(6*time.Hour), 10)
 		if err != nil {
 			t.Fatalf("Error while creating iot generator")
 		}
-		
+
 		g := ig.(*IoT)
-		
+
 		q := g.GenerateEmptyQuery()
 		rand.Seed(123)
 		g.TrucksWithLongDrivingSessions(q)
-		
+
 		verifyQuery(t, q, c.expectedHumanLabel, c.expectedHumanDesc, c.expectedQuery)
 	}
 }
@@ -232,10 +232,10 @@ func TestTrucksWithLongDailySessions(t *testing.T) {
 	cases := []IoTTestCase{
 		{
 			desc: "default",
-			
+
 			expectedHumanLabel: "Influx trucks with longer daily sessions",
 			expectedHumanDesc:  "Influx trucks with longer daily sessions: drove more than 10 hours in the last 24 hours",
-			
+
 			expectedQuery: "/query?q=SELECT+%22name%22%2C%22driver%22+%0A%09%09" +
 				"FROM%28SELECT+count%28%2A%29+AS+ten_min+%0A%09%09+FROM%28" +
 				"SELECT+mean%28%22velocity%22%29+AS+mean_velocity+%0A%09%09++FROM+readings+%0A%09%09++" +
@@ -245,20 +245,20 @@ func TestTrucksWithLongDailySessions(t *testing.T) {
 				"GROUP+BY+%22name%22%2C%22driver%22%29+%0A%09%09WHERE+ten_min_mean_velocity+%3E+60",
 		},
 	}
-	
+
 	for _, c := range cases {
 		b := BaseGenerator{}
 		ig, err := b.NewIoT(time.Unix(0, 0), time.Unix(0, 0).Add(25*time.Hour), 10)
 		if err != nil {
 			t.Fatalf("Error while creating iot generator")
 		}
-		
+
 		g := ig.(*IoT)
-		
+
 		q := g.GenerateEmptyQuery()
 		rand.Seed(123)
 		g.TrucksWithLongDailySessions(q)
-		
+
 		verifyQuery(t, q, c.expectedHumanLabel, c.expectedHumanDesc, c.expectedQuery)
 	}
 }
@@ -267,28 +267,28 @@ func TestAvgVsProjectedFuelConsumption(t *testing.T) {
 	cases := []IoTTestCase{
 		{
 			desc: "default",
-			
+
 			expectedHumanLabel: "Influx average vs projected fuel consumption per fleet",
 			expectedHumanDesc:  "Influx average vs projected fuel consumption per fleet",
-			
+
 			expectedQuery: "/query?q=SELECT+mean%28%22fuel_consumption%22%29+AS+%22mean_fuel_consumption%22%2C+mean%28%22nominal_fuel_consumption%22%29+AS+%22nominal_fuel_consumption%22+%0A%09%09" +
 				"FROM+%22readings%22+%0A%09%09WHERE+%22velocity%22+%3E+1+%0A%09%09GROUP+BY+%22fleet%22",
 		},
 	}
-	
+
 	for _, c := range cases {
 		b := BaseGenerator{}
 		ig, err := b.NewIoT(time.Unix(0, 0), time.Unix(0, 0).Add(25*time.Hour), 10)
 		if err != nil {
 			t.Fatalf("Error while creating iot generator")
 		}
-		
+
 		g := ig.(*IoT)
-		
+
 		q := g.GenerateEmptyQuery()
 		rand.Seed(123)
 		g.AvgVsProjectedFuelConsumption(q)
-		
+
 		verifyQuery(t, q, c.expectedHumanLabel, c.expectedHumanDesc, c.expectedQuery)
 	}
 }
@@ -297,10 +297,10 @@ func TestAvgDailyDrivingDuration(t *testing.T) {
 	cases := []IoTTestCase{
 		{
 			desc: "default",
-			
+
 			expectedHumanLabel: "Influx average driver driving duration per day",
 			expectedHumanDesc:  "Influx average driver driving duration per day",
-			
+
 			expectedQuery: "/query?q=SELECT+count%28%22mv%22%29%2F6+as+%22hours+driven%22+%0A%09%09" +
 				"FROM+%28SELECT+mean%28%22velocity%22%29+as+%22mv%22+%0A%09%09+" +
 				"FROM+%22readings%22+%0A%09%09+WHERE+time+%3E+%271970-01-01T00%3A00%3A00Z%27+AND+time+%3C+%271970-01-02T01%3A00%3A00Z%27+%0A%09%09+" +
@@ -309,20 +309,20 @@ func TestAvgDailyDrivingDuration(t *testing.T) {
 				"GROUP+BY+time%281d%29%2C%22fleet%22%2C+%22name%22%2C+%22driver%22",
 		},
 	}
-	
+
 	for _, c := range cases {
 		b := BaseGenerator{}
 		ig, err := b.NewIoT(time.Unix(0, 0), time.Unix(0, 0).Add(25*time.Hour), 10)
 		if err != nil {
 			t.Fatalf("Error while creating iot generator")
 		}
-		
+
 		g := ig.(*IoT)
-		
+
 		q := g.GenerateEmptyQuery()
 		rand.Seed(123)
 		g.AvgDailyDrivingDuration(q)
-		
+
 		verifyQuery(t, q, c.expectedHumanLabel, c.expectedHumanDesc, c.expectedQuery)
 	}
 }
@@ -331,10 +331,10 @@ func TestAvgDailyDrivingSession(t *testing.T) {
 	cases := []IoTTestCase{
 		{
 			desc: "default",
-			
+
 			expectedHumanLabel: "Influx average driver driving session without stopping per day",
 			expectedHumanDesc:  "Influx average driver driving session without stopping per day",
-			
+
 			expectedQuery: "/query?q=SELECT+%22elapsed%22+%0A%09%09INTO+%22random_measure2_1%22+%0A%09%09FROM+%28" +
 				"SELECT+difference%28%22difka%22%29%2C+elapsed%28%22difka%22%2C+1m%29+%0A%09%09+" +
 				"FROM+%28SELECT+%22difka%22+%0A%09%09++FROM+%28SELECT+difference%28%22mv%22%29+AS+difka+%0A%09%09+++" +
@@ -350,20 +350,20 @@ func TestAvgDailyDrivingSession(t *testing.T) {
 				"GROUP+BY+time%281d%29%2C%22name%22",
 		},
 	}
-	
+
 	for _, c := range cases {
 		b := BaseGenerator{}
 		ig, err := b.NewIoT(time.Unix(0, 0), time.Unix(0, 0).Add(25*time.Hour), 10)
 		if err != nil {
 			t.Fatalf("Error while creating iot generator")
 		}
-		
+
 		g := ig.(*IoT)
-		
+
 		q := g.GenerateEmptyQuery()
 		rand.Seed(123)
 		g.AvgDailyDrivingSession(q)
-		
+
 		verifyQuery(t, q, c.expectedHumanLabel, c.expectedHumanDesc, c.expectedQuery)
 	}
 }
@@ -372,30 +372,30 @@ func TestAvgLoad(t *testing.T) {
 	cases := []IoTTestCase{
 		{
 			desc: "default",
-			
+
 			expectedHumanLabel: "Influx average load per truck model per fleet",
 			expectedHumanDesc:  "Influx average load per truck model per fleet",
-			
+
 			expectedQuery: "/query?q=SELECT+mean%28%22ml%22%29+AS+mean_load_percentage+%0A%09%09" +
 				"FROM+%28SELECT+%22current_load%22%2F%22load_capacity%22+AS+%22ml%22+%0A%09%09+" +
 				"FROM+%22diagnostics%22+%0A%09%09+GROUP+BY+%22name%22%2C+%22fleet%22%2C+%22model%22%29+%0A%09%09" +
 				"GROUP+BY+%22fleet%22%2C+%22model%22",
 		},
 	}
-	
+
 	for _, c := range cases {
 		b := BaseGenerator{}
 		ig, err := b.NewIoT(time.Unix(0, 0), time.Unix(0, 0).Add(25*time.Hour), 10)
 		if err != nil {
 			t.Fatalf("Error while creating iot generator")
 		}
-		
+
 		g := ig.(*IoT)
-		
+
 		q := g.GenerateEmptyQuery()
 		rand.Seed(123)
 		g.AvgLoad(q)
-		
+
 		verifyQuery(t, q, c.expectedHumanLabel, c.expectedHumanDesc, c.expectedQuery)
 	}
 }
@@ -404,10 +404,10 @@ func TestDailyTruckActivity(t *testing.T) {
 	cases := []IoTTestCase{
 		{
 			desc: "default",
-			
+
 			expectedHumanLabel: "Influx daily truck activity per fleet per model",
 			expectedHumanDesc:  "Influx daily truck activity per fleet per model",
-			
+
 			expectedQuery: "/query?q=SELECT+count%28%22ms%22%29%2F144+%0A%09%09FROM+%28" +
 				"SELECT+mean%28%22status%22%29+AS+ms+%0A%09%09+FROM+%22diagnostics%22+%0A%09%09+" +
 				"WHERE+time+%3E%3D+%271970-01-01T00%3A00%3A00Z%27+AND+time+%3C+%271970-01-02T01%3A00%3A00Z%27+%0A%09%09+" +
@@ -416,20 +416,20 @@ func TestDailyTruckActivity(t *testing.T) {
 				"GROUP+BY+time%281d%29%2C+%22model%22%2C+%22fleet%22",
 		},
 	}
-	
+
 	for _, c := range cases {
 		b := BaseGenerator{}
 		ig, err := b.NewIoT(time.Unix(0, 0), time.Unix(0, 0).Add(25*time.Hour), 10)
 		if err != nil {
 			t.Fatalf("Error while creating iot generator")
 		}
-		
+
 		g := ig.(*IoT)
-		
+
 		q := g.GenerateEmptyQuery()
 		rand.Seed(123)
 		g.DailyTruckActivity(q)
-		
+
 		verifyQuery(t, q, c.expectedHumanLabel, c.expectedHumanDesc, c.expectedQuery)
 	}
 }
@@ -438,10 +438,10 @@ func TestTruckBreakdownFrequency(t *testing.T) {
 	cases := []IoTTestCase{
 		{
 			desc: "default",
-			
+
 			expectedHumanLabel: "Influx truck breakdown frequency per model",
 			expectedHumanDesc:  "Influx truck breakdown frequency per model",
-			
+
 			expectedQuery: "/query?q=SELECT+count%28%22state_changed%22%29+%0A%09%09" +
 				"FROM+%28SELECT+difference%28%22broken_down%22%29+AS+%22state_changed%22+%0A%09%09+" +
 				"FROM+%28SELECT+floor%282%2A%28sum%28%22nzs%22%29%2Fcount%28%22nzs%22%29%29%29%2Ffloor%282%2A%28sum%28%22nzs%22%29%2Fcount%28%22nzs%22%29%29%29+AS+%22broken_down%22+%0A%09%09++" +
@@ -453,20 +453,20 @@ func TestTruckBreakdownFrequency(t *testing.T) {
 				"WHERE+%22state_changed%22+%3D+1+%0A%09%09GROUP+BY+%22model%22",
 		},
 	}
-	
+
 	for _, c := range cases {
 		b := BaseGenerator{}
 		ig, err := b.NewIoT(time.Unix(0, 0), time.Unix(0, 0).Add(25*time.Hour), 10)
 		if err != nil {
 			t.Fatalf("Error while creating iot generator")
 		}
-		
+
 		g := ig.(*IoT)
-		
+
 		q := g.GenerateEmptyQuery()
 		rand.Seed(123)
 		g.TruckBreakdownFrequency(q)
-		
+
 		verifyQuery(t, q, c.expectedHumanLabel, c.expectedHumanDesc, c.expectedQuery)
 	}
 }
@@ -508,18 +508,18 @@ func TestTenMinutePeriods(t *testing.T) {
 			result:         2,
 		},
 	}
-	
+
 	for _, c := range cases {
 		if got := tenMinutePeriods(c.minutesPerHour, c.duration); got != c.result {
 			t.Errorf("incorrect result for %.2f minutes per hour, duration %s: got %d want %d", c.minutesPerHour, c.duration.String(), got, c.result)
 		}
 	}
-	
+
 }
 
 func runIoTTestCases(t *testing.T, testFunc func(*IoT, IoTTestCase) query.Query, s time.Time, e time.Time, cases []IoTTestCase) {
 	rand.Seed(123) // Setting seed for testing purposes.
-	
+
 	for _, c := range cases {
 		t.Run(c.desc, func(t *testing.T) {
 			b := BaseGenerator{}
@@ -528,7 +528,7 @@ func runIoTTestCases(t *testing.T, testFunc func(*IoT, IoTTestCase) query.Query,
 				t.Fatalf("Error while creating devops generator")
 			}
 			i := dq.(*IoT)
-			
+
 			if c.fail {
 				func() {
 					defer func() {
@@ -536,21 +536,21 @@ func runIoTTestCases(t *testing.T, testFunc func(*IoT, IoTTestCase) query.Query,
 						if r == nil {
 							t.Fatalf("did not panic when should")
 						}
-						
+
 						if r != c.failMsg {
 							t.Fatalf("incorrect fail message: got %s, want %s", r, c.failMsg)
 						}
 					}()
-					
+
 					testFunc(i, c)
 				}()
 			} else {
 				q := testFunc(i, c)
-				
+
 				v := url.Values{}
 				v.Set("q", c.expectedQuery)
 				expectedPath := fmt.Sprintf("/query?%s", v.Encode())
-				
+
 				verifyQuery(t, q, c.expectedHumanLabel, c.expectedHumanDesc, expectedPath)
 			}
 		})
@@ -558,27 +558,27 @@ func runIoTTestCases(t *testing.T, testFunc func(*IoT, IoTTestCase) query.Query,
 }
 func verifyQuery(t *testing.T, q query.Query, humanLabel, humanDesc, path string) {
 	influxql, ok := q.(*query.HTTP)
-	
+
 	if !ok {
 		t.Fatal("Filled query is not *query.HTTP type")
 	}
-	
+
 	if got := string(influxql.HumanLabel); got != humanLabel {
 		t.Errorf("incorrect human label:\ngot\n%s\nwant\n%s", got, humanLabel)
 	}
-	
+
 	if got := string(influxql.HumanDescription); got != humanDesc {
 		t.Errorf("incorrect human description:\ngot\n%s\nwant\n%s", got, humanDesc)
 	}
-	
+
 	if got := string(influxql.Method); got != "POST" {
 		t.Errorf("incorrect method:\ngot\n%s\nwant POST", got)
 	}
-	
+
 	if got := string(influxql.Path); got != path {
 		t.Errorf("incorrect path:\ngot\n%s\nwant\n%s", got, path)
 	}
-	
+
 	if influxql.Body != nil {
 		t.Errorf("body not nil, got %+v", influxql.Body)
 	}

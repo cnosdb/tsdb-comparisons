@@ -23,11 +23,11 @@ func initLoadCMD() (*cobra.Command, error) {
 	err := viper.BindPFlags(cmd.PersistentFlags())
 	// don't bind --config which specifies the file from where to read config
 	cmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is ./config.yaml)")
-	
+
 	if err != nil {
 		return nil, fmt.Errorf("could not bind flags to configuration: %v", err)
 	}
-	
+
 	subCommands := initLoadSubCommands()
 	cmd.AddCommand(subCommands...)
 	return cmd, nil
@@ -50,11 +50,11 @@ func initLoadSubCommands() []*cobra.Command {
 			Short: "Load data into " + format + " as a target db",
 			Run:   createRunLoad(target),
 		}
-		
+
 		target.TargetSpecificFlags("loader.db-specific.", cmd.PersistentFlags())
 		commands[i] = cmd
 	}
-	
+
 	return commands
 }
 
@@ -84,7 +84,7 @@ func initViperConfig(*cobra.Command, []string) {
 		viper.SetConfigName("config")
 		viper.SetConfigType("yaml")
 	}
-	
+
 	if err := viper.ReadInConfig(); err == nil {
 		fmt.Println("Using config file:", viper.ConfigFileUsed())
 	}

@@ -22,19 +22,19 @@ func (m *testMeasurement) ToPoint(_ *data.Point) {}
 
 func TestNewTruckMeasurements(t *testing.T) {
 	start := time.Now()
-	
+
 	measurements := newTruckMeasurements(start)
-	
+
 	if got := len(measurements); got != 2 {
 		t.Errorf("incorrect number of measurements: got %d want %d", got, 2)
 	}
-	
+
 	// Cast each measurement to its type; will panic if wrong types
 	readings := measurements[0].(*ReadingsMeasurement)
 	if got := readings.Timestamp; got != start {
 		t.Errorf("incorrect readings measurement timestamp: got %v want %v", got, start)
 	}
-	
+
 	diagnostics := measurements[1].(*DiagnosticsMeasurement)
 	if got := diagnostics.Timestamp; got != start {
 		t.Errorf("incorrect diagnostics measurement timestamp: got %v want %v", got, start)
@@ -44,13 +44,13 @@ func TestNewTruckMeasurements(t *testing.T) {
 func TestNewTruck(t *testing.T) {
 	start := time.Now()
 	generator := NewTruck(1, start)
-	
+
 	truck := generator.(*Truck)
-	
+
 	if got := len(truck.Measurements()); got != 2 {
 		t.Errorf("incorrect truck measurement count: got %v want %v", got, 2)
 	}
-	
+
 	if got := len(truck.Tags()); got != 8 {
 		t.Errorf("incorrect truck tag count: got %v want %v", got, 8)
 	}

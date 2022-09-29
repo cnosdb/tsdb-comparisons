@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"net/url"
 	"time"
-	
+
 	"github.com/valyala/fasthttp"
 )
 
@@ -32,10 +32,10 @@ var (
 type HTTPWriterConfig struct {
 	// URL of the host, in form "http://example.com:8086"
 	Host string
-	
+
 	// Name of the target database into which points will be written.
 	Database string
-	
+
 	// Debug label for more informative errors.
 	DebugInfo string
 }
@@ -43,7 +43,7 @@ type HTTPWriterConfig struct {
 // HTTPWriter is a Writer that writes to an InfluxDB HTTP server.
 type HTTPWriter struct {
 	client fasthttp.Client
-	
+
 	c   HTTPWriterConfig
 	url []byte
 }
@@ -54,7 +54,7 @@ func NewHTTPWriter(c HTTPWriterConfig, consistency string) *HTTPWriter {
 		client: fasthttp.Client{
 			Name: httpClientName,
 		},
-		
+
 		c:   c,
 		url: []byte(c.Host + "/write?consistency=" + consistency + "&db=" + url.QueryEscape(c.Database)),
 	}
@@ -97,10 +97,10 @@ func (w *HTTPWriter) WriteLineProtocol(body []byte, isGzip bool) (int64, error) 
 	req := fasthttp.AcquireRequest()
 	defer fasthttp.ReleaseRequest(req)
 	w.initializeReq(req, body, isGzip)
-	
+
 	resp := fasthttp.AcquireResponse()
 	defer fasthttp.ReleaseResponse(resp)
-	
+
 	return w.executeReq(req, resp)
 }
 

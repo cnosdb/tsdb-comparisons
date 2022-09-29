@@ -28,7 +28,7 @@ func TestTimescaleDBSerializerSerialize(t *testing.T) {
 			Output:     "tags\ncpu,1451606400000000000,38.24311829\n",
 		},
 	}
-	
+
 	serialize.SerializerTest(t, cases, &Serializer{})
 }
 

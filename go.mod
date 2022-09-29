@@ -10,6 +10,7 @@ require (
 	github.com/blagojts/viper v1.6.3-0.20200313094124-068f44cf5e69
 	github.com/go-ole/go-ole v1.2.4 // indirect
 	github.com/go-sql-driver/mysql v1.5.0 // indirect
+	github.com/google/flatbuffers v22.9.24+incompatible
 	github.com/google/go-cmp v0.5.7
 	github.com/jackc/pgx/v4 v4.8.0
 	github.com/jmoiron/sqlx v1.2.1-0.20190826204134-d7d95172beb5
@@ -29,6 +30,8 @@ require (
 	github.com/valyala/fasthttp v1.15.1
 	golang.org/x/crypto v0.0.0-20200820211705-5c72a883971a // indirect
 	golang.org/x/time v0.0.0-20200630173020-3af7569d3a1e
+	google.golang.org/grpc v1.49.0
+	google.golang.org/protobuf v1.27.1
 	gopkg.in/yaml.v2 v2.3.0
 	gopkg.in/yaml.v3 v3.0.0-20200615113413-eeeca48fe776 // indirect
 )

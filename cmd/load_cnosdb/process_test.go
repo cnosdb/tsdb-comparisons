@@ -8,7 +8,7 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
-	
+
 	"github.com/cnosdb/tsdb-comparisons/pkg/data"
 )
 
@@ -28,21 +28,21 @@ func TestProcessorInit(t *testing.T) {
 	if got := p.httpWriter.c.Database; got != loader.DatabaseName() {
 		t.Errorf("incorrect database: got %s want %s", got, loader.DatabaseName())
 	}
-	
+
 	p = &processor{}
 	p.Init(1, false, false)
 	p.Close(true)
 	if got := p.httpWriter.c.Host; got != daemonURLs[1] {
 		t.Errorf("incorrect host: got %s want %s", got, daemonURLs[1])
 	}
-	
+
 	p = &processor{}
 	p.Init(len(daemonURLs), false, false)
 	p.Close(true)
 	if got := p.httpWriter.c.Host; got != daemonURLs[0] {
 		t.Errorf("incorrect host: got %s want %s", got, daemonURLs[0])
 	}
-	
+
 }
 
 func TestProcessorInitWithHTTPWriterConfig(t *testing.T) {
@@ -60,7 +60,7 @@ func TestProcessorInitWithHTTPWriterConfig(t *testing.T) {
 	w := NewHTTPWriter(testConf, testConsistency)
 	p.initWithHTTPWriter(workerNum, w)
 	p.Close(true)
-	
+
 	// Check p was initialized correctly with channels
 	if got := cap(p.backingOffChan); got != backingOffChanCap {
 		t.Errorf("backing off chan cap incorrect: got %d want %d", got, backingOffChanCap)
@@ -68,13 +68,13 @@ func TestProcessorInitWithHTTPWriterConfig(t *testing.T) {
 	if got := cap(p.backingOffDone); got != 0 {
 		t.Errorf("backing off done chan cap not 0: got %d", got)
 	}
-	
+
 	// Check p was initialized with correct writer given conf
 	err := testWriterMatchesConfig(p.httpWriter, testConf, testConsistency)
 	if err != nil {
 		t.Error(err)
 	}
-	
+
 	// Check that backoff successfully shut down
 	if got := atomic.LoadInt64(&counter); got != 1 {
 		t.Errorf("printFn called incorrect # of times: got %d want %d", got, 1)
@@ -97,7 +97,7 @@ func TestProcessorProcessBatch(t *testing.T) {
 		Data: []byte("tag1=tag1val,tag2=tag2val col1=0.0,col2=0.0 140"),
 	}
 	b.Append(pt)
-	
+
 	cases := []struct {
 		doLoad        bool
 		useGzip       bool
@@ -126,7 +126,7 @@ func TestProcessorProcessBatch(t *testing.T) {
 			shouldFatal: true,
 		},
 	}
-	
+
 	for _, c := range cases {
 		var ch chan struct{}
 		fatalCalled := false
@@ -141,10 +141,10 @@ func TestProcessorProcessBatch(t *testing.T) {
 			}
 			ch = launchHTTPServer()
 		}
-		
+
 		p := &processor{}
 		w := NewHTTPWriter(testConf, testConsistency)
-		
+
 		// If the case should backoff, we tell our dummy server to do so by
 		// modifying the URL params. This should keep ProcessBatch in a loop
 		// until it gets a response that is not a backoff (every other response from the server).
@@ -152,7 +152,7 @@ func TestProcessorProcessBatch(t *testing.T) {
 			normalURL := string(w.url)
 			w.url = []byte(fmt.Sprintf("%s&%s=true", normalURL, shouldBackoffParam))
 		}
-		
+
 		p.initWithHTTPWriter(0, w)
 		useGzip = c.useGzip
 		mCnt, rCnt := p.ProcessBatch(b, c.doLoad)
@@ -169,7 +169,7 @@ func TestProcessorProcessBatch(t *testing.T) {
 				t.Errorf("process batch returned less rows than batch: got %d want %d", rCnt, b.rows)
 			}
 			p.Close(true)
-			
+
 			shutdownHTTPServer(ch)
 			time.Sleep(50 * time.Millisecond)
 		}
@@ -190,7 +190,7 @@ func TestProcessorProcessBackoffMessages(t *testing.T) {
 	p := &processor{}
 	w := NewHTTPWriter(testConf, testConsistency)
 	p.initWithHTTPWriter(workerNum, w)
-	
+
 	// Sending false at the beginning should do nothing
 	p.backingOffChan <- false
 	time.Sleep(50 * time.Millisecond)
@@ -207,7 +207,7 @@ func TestProcessorProcessBackoffMessages(t *testing.T) {
 		defer m.Unlock()
 		t.Errorf("printFn called when not expected after second false: msg %s", string(b.Bytes()))
 	}
-	
+
 	// Send true, should be no print
 	p.backingOffChan <- true
 	time.Sleep(50 * time.Millisecond)

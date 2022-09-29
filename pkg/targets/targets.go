@@ -2,11 +2,11 @@ package targets
 
 import (
 	"github.com/blagojts/viper"
-	"github.com/spf13/pflag"
 	"github.com/cnosdb/tsdb-comparisons/pkg/data"
 	"github.com/cnosdb/tsdb-comparisons/pkg/data/serialize"
 	"github.com/cnosdb/tsdb-comparisons/pkg/data/source"
 	"github.com/cnosdb/tsdb-comparisons/pkg/data/usecases/common"
+	"github.com/spf13/pflag"
 )
 
 type ImplementedTarget interface {
@@ -57,16 +57,16 @@ type BatchFactory interface {
 type Benchmark interface {
 	// GetDataSource returns the DataSource to use for this Benchmark
 	GetDataSource() DataSource
-	
+
 	// GetBatchFactory returns the BatchFactory to use for this Benchmark
 	GetBatchFactory() BatchFactory
-	
+
 	// GetPointIndexer returns the PointIndexer to use for this Benchmark
 	GetPointIndexer(maxPartitions uint) PointIndexer
-	
+
 	// GetProcessor returns the Processor to use for this Benchmark
 	GetProcessor() Processor
-	
+
 	// GetDBCreator returns the DBCreator to use for this Benchmark
 	GetDBCreator() DBCreator
 }

@@ -2,7 +2,7 @@ package timescaledb
 
 import (
 	"fmt"
-	
+
 	"github.com/cnosdb/tsdb-comparisons/pkg/data"
 	"github.com/cnosdb/tsdb-comparisons/pkg/data/serialize"
 	"github.com/cnosdb/tsdb-comparisons/pkg/data/usecases/common"
@@ -25,7 +25,7 @@ func (d *simulationDataSource) Headers() *common.GeneratedDataHeaders {
 	if d.headers != nil {
 		return d.headers
 	}
-	
+
 	d.headers = d.simulator.Headers()
 	return d.headers
 }
@@ -68,9 +68,9 @@ func (d *simulationDataSource) NextItem() data.LoadedPoint {
 		buf = append(buf, ',')
 		buf = serialize.FastFormatAppend(v, buf)
 	}
-	
+
 	newLoadPoint.fields = string(buf)
-	
+
 	return data.NewLoadedPoint(&point{
 		hypertable: string(newSimulatorPoint.MeasurementName()),
 		row:        newLoadPoint,

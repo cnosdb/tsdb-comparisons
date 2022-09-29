@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"sync"
 	"testing"
-	
+
 	"github.com/cnosdb/tsdb-comparisons/pkg/data"
 )
 
@@ -34,7 +34,7 @@ func TestBatch(t *testing.T) {
 	if b.metrics != 2 {
 		t.Errorf("batch metric count is not 2 after first append")
 	}
-	
+
 	p = data.LoadedPoint{
 		Data: []byte("tag1=tag1val,tag2=tag2val col1=1.0,col2=1.0 190"),
 	}
@@ -48,7 +48,7 @@ func TestBatch(t *testing.T) {
 	if b.metrics != 4 {
 		t.Errorf("batch metric count is not 2 after first append")
 	}
-	
+
 	p = data.LoadedPoint{
 		Data: []byte("bad_point"),
 	}
@@ -80,7 +80,7 @@ func TestFileDataSourceNextItem(t *testing.T) {
 			result: []byte("cpu,tag1=tag1text,tag2=tag2text col1=0.0,col2=0.0 140"),
 		},
 	}
-	
+
 	for _, c := range cases {
 		br := bufio.NewReader(bytes.NewReader([]byte(c.input)))
 		ds := &fileDataSource{scanner: bufio.NewScanner(br)}

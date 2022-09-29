@@ -4,7 +4,7 @@ import (
 	"sort"
 	"testing"
 	"time"
-	
+
 	"github.com/cnosdb/tsdb-comparisons/internal/utils"
 )
 
@@ -46,7 +46,7 @@ func TestGetRandomSubsetPerm(t *testing.T) {
 		{scale: 10, nItems: 10},
 		{scale: 1000, nItems: 1000},
 	}
-	
+
 	for _, c := range cases {
 		ret, err := GetRandomSubsetPerm(c.nItems, c.scale)
 		if err != nil {

@@ -12,14 +12,14 @@ import (
 	"regexp"
 	"strings"
 	"time"
-	
+
 	"github.com/blagojts/viper"
+	"github.com/cnosdb/tsdb-comparisons/internal/utils"
+	"github.com/cnosdb/tsdb-comparisons/pkg/query"
 	_ "github.com/jackc/pgx/v4/stdlib"
 	_ "github.com/lib/pq"
 	"github.com/pkg/errors"
 	"github.com/spf13/pflag"
-	"github.com/cnosdb/tsdb-comparisons/internal/utils"
-	"github.com/cnosdb/tsdb-comparisons/pkg/query"
 )
 
 const pgxDriver = "pgx" // default driver
@@ -46,29 +46,29 @@ var (
 func init() {
 	var config query.BenchmarkRunnerConfig
 	config.AddToFlagSet(pflag.CommandLine)
-	
+
 	pflag.String("postgres", "host=postgres user=postgres sslmode=disable",
 		"String of additional PostgreSQL connection parameters, e.g., 'sslmode=disable'. Parameters for host and database will be ignored.")
 	pflag.String("hosts", "localhost", "Comma separated list of PostgreSQL hosts (pass multiple values for sharding reads on a multi-node setup)")
 	pflag.String("user", "postgres", "User to connect to PostgreSQL as")
 	pflag.String("pass", "", "Password for the user connecting to PostgreSQL (leave blank if not password protected)")
 	pflag.String("port", "5432", "Which port to connect to on the database host")
-	
+
 	pflag.Bool("show-explain", false, "Print out the EXPLAIN output for sample query")
 	pflag.Bool("force-text-format", false, "Send/receive data in text format")
-	
+
 	pflag.Parse()
-	
+
 	err := utils.SetupConfigFile()
-	
+
 	if err != nil {
 		panic(fmt.Errorf("fatal error config file: %s", err))
 	}
-	
+
 	if err := viper.Unmarshal(&config); err != nil {
 		panic(fmt.Errorf("unable to decode config: %s", err))
 	}
-	
+
 	postgresConnect = viper.GetString("postgres")
 	hosts := viper.GetString("hosts")
 	user = viper.GetString("user")
@@ -76,19 +76,19 @@ func init() {
 	port = viper.GetString("port")
 	showExplain = viper.GetBool("show-explain")
 	forceTextFormat = viper.GetBool("force-text-format")
-	
+
 	runner = query.NewBenchmarkRunner(config)
-	
+
 	if showExplain {
 		runner.SetLimit(1)
 	}
-	
+
 	if forceTextFormat {
 		driver = pqDriver
 	} else {
 		driver = pgxDriver
 	}
-	
+
 	// Parse comma separated string of hosts and put in a slice (for multi-node setups)
 	for _, host := range strings.Split(hosts, ",") {
 		hostList = append(hostList, host)
@@ -109,11 +109,11 @@ func getConnectString(workerNumber int) string {
 	// multi host configuration. Same for dbname= and user=. This sanitizes that.
 	re := regexp.MustCompile(`(host|dbname|user)=\S*\b`)
 	connectString := re.ReplaceAllString(postgresConnect, "")
-	
+
 	// Round robin the host/worker assignment by assigning a host based on workerNumber % totalNumberOfHosts
 	host := hostList[workerNumber%len(hostList)]
 	connectString = fmt.Sprintf("host=%s dbname=%s user=%s %s", host, runner.DatabaseName(), user, connectString)
-	
+
 	// For optional parameters, ensure they exist then interpolate them into the connectString
 	if len(port) > 0 {
 		connectString = fmt.Sprintf("%s port=%s", connectString, port)
@@ -124,7 +124,7 @@ func getConnectString(workerNumber int) string {
 	if forceTextFormat {
 		connectString = fmt.Sprintf("%s disable_prepared_binary_result=yes binary_parameters=no", connectString)
 	}
-	
+
 	return connectString
 }
 
@@ -135,12 +135,12 @@ func prettyPrintResponse(rows *sql.Rows, q *query.TimescaleDB) {
 	resp := make(map[string]interface{})
 	resp["query"] = string(q.SqlQuery)
 	resp["results"] = mapRows(rows)
-	
+
 	line, err := json.MarshalIndent(resp, "", "  ")
 	if err != nil {
 		panic(err)
 	}
-	
+
 	fmt.Println(string(line) + "\n")
 }
 
@@ -153,12 +153,12 @@ func mapRows(r *sql.Rows) []map[string]interface{} {
 		for i := range values {
 			values[i] = new(interface{})
 		}
-		
+
 		err := r.Scan(values...)
 		if err != nil {
 			panic(errors.Wrap(err, "error while reading values"))
 		}
-		
+
 		for i, column := range cols {
 			row[column] = *values[i].(*interface{})
 		}
@@ -199,7 +199,7 @@ func (p *processor) ProcessQuery(q query.Query, isWarm bool) ([]*query.Stat, err
 		return nil, nil
 	}
 	tq := q.(*query.TimescaleDB)
-	
+
 	start := time.Now()
 	qry := string(tq.SqlQuery)
 	if showExplain {
@@ -209,7 +209,7 @@ func (p *processor) ProcessQuery(q query.Query, isWarm bool) ([]*query.Stat, err
 	if err != nil {
 		return nil, err
 	}
-	
+
 	if p.opts.debug {
 		fmt.Println(qry)
 	}
@@ -236,6 +236,6 @@ func (p *processor) ProcessQuery(q query.Query, isWarm bool) ([]*query.Stat, err
 	took := float64(time.Since(start).Nanoseconds()) / 1e6
 	stat := query.GetStat()
 	stat.Init(q.HumanLabelName(), took)
-	
+
 	return []*query.Stat{stat}, err
 }

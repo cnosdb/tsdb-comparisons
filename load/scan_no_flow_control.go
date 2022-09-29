@@ -34,16 +34,16 @@ func scanWithoutFlowControl(
 			break
 		}
 		itemsRead++
-		
+
 		idx := indexer.GetIndex(item)
 		batches[idx].Append(item)
-		
+
 		if batches[idx].Len() >= batchSize {
 			channels[idx] <- batches[idx]
 			batches[idx] = factory.New()
 		}
 	}
-	
+
 	for idx, unfilledBatch := range batches {
 		if unfilledBatch.Len() > 0 {
 			channels[idx] <- unfilledBatch

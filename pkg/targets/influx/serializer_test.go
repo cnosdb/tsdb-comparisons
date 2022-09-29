@@ -36,6 +36,6 @@ func TestInfluxSerializerSerialize(t *testing.T) {
 			Output:     "cpu usage_guest_nice=38.24311829 1451606400000000000\n",
 		},
 	}
-	
+
 	serialize.SerializerTest(t, cases, &Serializer{})
 }

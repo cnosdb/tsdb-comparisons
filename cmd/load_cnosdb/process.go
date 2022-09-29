@@ -3,11 +3,9 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"time"
-
 	"github.com/cnosdb/tsdb-comparisons/pkg/targets"
-
 	"github.com/valyala/fasthttp"
+	"time"
 )
 
 const backingOffChanCap = 100
@@ -55,12 +53,24 @@ func (p *processor) ProcessBatch(b targets.Batch, doLoad bool) (uint64, uint64) 
 			if useGzip {
 				compressedBatch := bufPool.Get().(*bytes.Buffer)
 				fasthttp.WriteGzip(compressedBatch, batch.buf.Bytes())
-				_, err = p.httpWriter.WriteLineProtocol(compressedBatch.Bytes(), true)
+				//file, e := os.OpenFile("text.txt", os.O_CREATE, 0755)
+				//if e != nil {
+				//	panic(fmt.Sprintf("open file error %s", e))
+				//}
+				//t := batch.buf.Bytes()
+				//_, err := file.WriteString(*(*string)(unsafe.Pointer(&t)))
+				//if err != nil {
+				//	panic(fmt.Sprintf("open file error %s", e.Error()))
+				//}
+				//fmt.Println(*(*string)(unsafe.Pointer(&t)))
+				points := parserLine(compressedBatch.Bytes())
+				_, err = p.httpWriter.WriteLineProtocol(points, true)
 				// Return the compressed batch buffer to the pool.
 				compressedBatch.Reset()
 				bufPool.Put(compressedBatch)
 			} else {
-				_, err = p.httpWriter.WriteLineProtocol(batch.buf.Bytes(), false)
+				points := parserLine(batch.buf.Bytes())
+				_, err = p.httpWriter.WriteLineProtocol(points, false)
 			}
 
 			if err == errBackoff {

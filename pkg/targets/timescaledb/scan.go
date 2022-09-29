@@ -3,7 +3,7 @@ package timescaledb
 import (
 	"hash/fnv"
 	"strings"
-	
+
 	"github.com/cnosdb/tsdb-comparisons/pkg/data"
 	"github.com/cnosdb/tsdb-comparisons/pkg/targets"
 )
@@ -51,7 +51,7 @@ type factory struct{}
 
 func (f *factory) New() targets.Batch {
 	return &hypertableArr{
-		m: map[string][]*insertData{},
+		m:   map[string][]*insertData{},
 		cnt: 0,
 	}
 }

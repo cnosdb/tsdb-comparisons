@@ -5,7 +5,7 @@ import (
 	"math/rand"
 	"reflect"
 	"time"
-	
+
 	"github.com/cnosdb/tsdb-comparisons/cmd/generate_queries/utils"
 	internalutils "github.com/cnosdb/tsdb-comparisons/internal/utils"
 )
@@ -18,7 +18,7 @@ const (
 type Core struct {
 	// Interval is the entire time range of the dataset
 	Interval *internalutils.TimeInterval
-	
+
 	// Scale is the cardinality of the dataset in terms of devices/hosts
 	Scale int
 }
@@ -29,7 +29,7 @@ func NewCore(start, end time.Time, scale int) (*Core, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return &Core{Interval: ti, Scale: scale}, nil
 }
 
@@ -48,7 +48,7 @@ func GetRandomSubsetPerm(numItems int, totalItems int) ([]int, error) {
 		// Cannot make a subset longer than the original set
 		return nil, fmt.Errorf(errMoreItemsThanScale)
 	}
-	
+
 	seen := map[int]bool{}
 	res := make([]int, numItems)
 	for i := 0; i < numItems; i++ {
