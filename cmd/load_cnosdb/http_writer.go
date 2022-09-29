@@ -4,11 +4,14 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"github.com/cnosdb/tsdb-comparisons/cmd/load_cnosdb/models"
+	proto "github.com/cnosdb/tsdb-comparisons/cmd/load_cnosdb/proto"
 	flatbuffers "github.com/google/flatbuffers/go"
 	"github.com/valyala/fasthttp"
+	"google.golang.org/grpc"
 	"strconv"
 	"time"
 	"unsafe"
@@ -47,7 +50,8 @@ type HTTPWriterConfig struct {
 
 // HTTPWriter is a Writer that writes to an CnosDB HTTP server.
 type HTTPWriter struct {
-	client fasthttp.Client
+	client     fasthttp.Client
+	grpcClient proto.TSKVService_WritePointsClient
 
 	c   HTTPWriterConfig
 	url []byte
@@ -55,13 +59,23 @@ type HTTPWriter struct {
 
 // NewHTTPWriter returns a new HTTPWriter from the supplied HTTPWriterConfig.
 func NewHTTPWriter(c HTTPWriterConfig, consistency string) *HTTPWriter {
+	conn, err := grpc.Dial(c.Host, grpc.WithInsecure(), grpc.WithBlock(), grpc.WithTimeout(10*time.Second))
+	if err != nil {
+		panic(err)
+	}
+	grpcClient := proto.NewTSKVServiceClient(conn)
+	writePointsCli, err := grpcClient.WritePoints(context.Background())
+	if err != nil {
+		panic(err)
+	}
+
 	return &HTTPWriter{
 		client: fasthttp.Client{
 			Name: httpClientName,
 		},
-
-		c:   c,
-		url: []byte(c.Host + "/write"),
+		grpcClient: writePointsCli,
+		c:          c,
+		url:        []byte(c.Host + "/write"),
 	}
 }
 
@@ -101,20 +115,34 @@ func (w *HTTPWriter) executeReq(req *fasthttp.Request, resp *fasthttp.Response) 
 // It returns the latency in nanoseconds and any error received while sending the data over HTTP,
 // or it returns a new error if the HTTP response isn't as expected.
 func (w *HTTPWriter) WriteLineProtocol(body []byte, isGzip bool) (int64, error) {
-	//client := TSKVServiceClient
-	req := fasthttp.AcquireRequest()
-	defer fasthttp.ReleaseRequest(req)
-	w.initializeReq(req, body, isGzip)
+	//req := fasthttp.AcquireRequest()
+	//defer fasthttp.ReleaseRequest(req)
+	//w.initializeReq(req, body, isGzip)
+	//
+	//resp := fasthttp.AcquireResponse()
+	//defer fasthttp.ReleaseResponse(resp)
+	//
+	//return w.executeReq(req, resp)
 
-	resp := fasthttp.AcquireResponse()
-	defer fasthttp.ReleaseResponse(resp)
+	err := w.grpcClient.Send(&proto.WritePointsRpcRequest{
+		Points: body,
+	})
+	if err != nil {
+		panic(err)
+	}
 
-	return w.executeReq(req, resp)
+	//_, err = w.grpcClient.Recv()
+	//if err != nil {
+	//	panic(err)
+	//}
+	//w.grpcClient.CloseSend()
+	return 200, nil
 }
 
 func parserLine(lines []byte) []byte {
-	pointFb := flatbuffers.NewBuilder(0)
+	//pointFb := flatbuffers.NewBuilder(0)
 	fb := flatbuffers.NewBuilder(0)
+	database := fb.CreateByteString([]byte("public"))
 	numLines := bytes.Count(lines, []byte{'\n'})
 
 	var pointOffs []flatbuffers.UOffsetT
@@ -144,12 +172,12 @@ func parserLine(lines []byte) []byte {
 		fb.PrependUOffsetT(i)
 	}
 	ptVec := fb.EndVector(numLines)
-	models.PointsStart(pointFb)
-	models.PointsAddPoints(pointFb, ptVec)
-	models.PointsAddDatabase(pointFb, pointFb.CreateByteString([]byte("public")))
-	endPoints := models.PointsEnd(pointFb)
-	pointFb.Finish(endPoints)
-	return pointFb.FinishedBytes()
+	models.PointsStart(fb)
+	models.PointsAddPoints(fb, ptVec)
+	models.PointsAddDatabase(fb, database)
+	endPoints := models.PointsEnd(fb)
+	fb.Finish(endPoints)
+	return fb.FinishedBytes()
 }
 
 func backpressurePred(body []byte) bool {
@@ -220,7 +248,7 @@ func scanLine(buf []byte, i int) (int, []byte) {
 
 	}
 
-	return i, buf[start:i]
+	return i + 1, buf[start:i]
 }
 
 func skipWhitespace(buf []byte, i int) int {
