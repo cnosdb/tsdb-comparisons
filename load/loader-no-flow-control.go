@@ -13,7 +13,7 @@ type noFlowBenchmarkRunner struct {
 
 func (l *noFlowBenchmarkRunner) RunBenchmark(b targets.Benchmark) {
 	wg, start := l.preRun(b)
-	
+
 	var numChannels uint
 	if l.HashWorkers {
 		numChannels = l.Workers
@@ -21,7 +21,7 @@ func (l *noFlowBenchmarkRunner) RunBenchmark(b targets.Benchmark) {
 		numChannels = 1
 	}
 	channels := l.createChannels(numChannels, l.ChannelCapacity)
-	
+
 	// Launch all worker processes in background
 	for i := uint(0); i < l.Workers; i++ {
 		go l.work(b, wg, channels[i%numChannels], i)
@@ -50,7 +50,7 @@ func (l *noFlowBenchmarkRunner) work(b targets.Benchmark, wg *sync.WaitGroup, c 
 	// Prepare processor
 	proc := b.GetProcessor()
 	proc.Init(int(workerNum), l.DoLoad, l.HashWorkers)
-	
+
 	// Process batches coming from the incoming queue (c)
 	for batch := range c {
 		startedWorkAt := time.Now()
@@ -59,12 +59,12 @@ func (l *noFlowBenchmarkRunner) work(b targets.Benchmark, wg *sync.WaitGroup, c 
 		atomic.AddUint64(&l.rowCnt, rowCnt)
 		l.timeToSleep(workerNum, startedWorkAt)
 	}
-	
+
 	// Close proc if necessary
 	switch c := proc.(type) {
 	case targets.ProcessorCloser:
 		c.Close(l.DoLoad)
 	}
-	
+
 	wg.Done()
 }

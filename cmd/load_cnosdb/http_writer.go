@@ -4,6 +4,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/base64"
 	"fmt"
 	"net/url"
 	"time"
@@ -56,7 +57,7 @@ func NewHTTPWriter(c HTTPWriterConfig, consistency string) *HTTPWriter {
 		},
 
 		c:   c,
-		url: []byte(c.Host + "/write/line_protocol?consistency=" + consistency + "&db=" + url.QueryEscape(c.Database)),
+		url: []byte(c.Host + "/api/v1/write?consistency=" + consistency + "&db=" + url.QueryEscape(c.Database)),
 	}
 }
 
@@ -65,10 +66,16 @@ var (
 	textPlain  = []byte("text/plain")
 )
 
+func basicAuth(username, password string) string {
+	auth := username + ":" + password
+	return "Basic " + base64.StdEncoding.EncodeToString([]byte(auth))
+}
 func (w *HTTPWriter) initializeReq(req *fasthttp.Request, body []byte, isGzip bool) {
 	req.Header.SetContentTypeBytes(textPlain)
 	req.Header.SetMethodBytes(methodPost)
 	req.Header.SetRequestURIBytes(w.url)
+	req.Header.Add(fasthttp.HeaderAuthorization, basicAuth("cnosdb", ""))
+
 	if isGzip {
 		req.Header.Add(headerContentEncoding, headerGzip)
 	}
@@ -83,7 +90,7 @@ func (w *HTTPWriter) executeReq(req *fasthttp.Request, resp *fasthttp.Response) 
 		sc := resp.StatusCode()
 		if sc == 500 && backpressurePred(resp.Body()) {
 			err = errBackoff
-		} else if sc != fasthttp.StatusNoContent {
+		} else if sc != fasthttp.StatusOK {
 			err = fmt.Errorf("[DebugInfo: %s] Invalid write response (status %d): %s", w.c.DebugInfo, sc, resp.Body())
 		}
 	}
