@@ -2,10 +2,12 @@ package main
 
 import (
 	"bytes"
+	"encoding/base64"
 	"fmt"
+	"time"
+
 	"github.com/cnosdb/tsdb-comparisons/pkg/targets"
 	"github.com/valyala/fasthttp"
-	"time"
 )
 
 const backingOffChanCap = 100
@@ -25,7 +27,7 @@ func (p *processor) Init(numWorker int, _, _ bool) {
 		DebugInfo: fmt.Sprintf("worker #%d, dest url: %s", numWorker, daemonURL),
 		Host:      daemonURL,
 		Database:  loader.DatabaseName(),
-		Auth:      config.Auth,
+		Auth:      "Basic " + base64.StdEncoding.EncodeToString([]byte(config.User+":"+config.Password)),
 	}
 	w := NewHTTPWriter(cfg, consistency)
 	p.initWithHTTPWriter(numWorker, w)

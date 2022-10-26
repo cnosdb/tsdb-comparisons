@@ -5,16 +5,18 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/binary"
 	"errors"
 	"fmt"
+	"strconv"
+	"time"
+	"unsafe"
+
 	"github.com/cnosdb/tsdb-comparisons/cmd/load_cnosdb/models"
 	proto "github.com/cnosdb/tsdb-comparisons/cmd/load_cnosdb/proto"
 	flatbuffers "github.com/google/flatbuffers/go"
 	"github.com/valyala/fasthttp"
 	"google.golang.org/grpc"
-	"strconv"
-	"time"
-	"unsafe"
 )
 
 const (
@@ -75,7 +77,7 @@ func NewHTTPWriter(c HTTPWriterConfig, consistency string) *HTTPWriter {
 		},
 		grpcClient: writePointsCli,
 		c:          c,
-		url:        []byte(c.Host + "/write"),
+		url:        []byte(c.Host + "/api/v1/write?db=" + c.Database),
 	}
 }
 
@@ -88,8 +90,7 @@ func (w *HTTPWriter) initializeReq(req *fasthttp.Request, body []byte, isGzip bo
 	req.Header.SetContentTypeBytes(textPlain)
 	req.Header.SetMethodBytes(methodPost)
 	req.Header.SetRequestURIBytes(w.url)
-	req.Header.Add("database", w.c.Database)
-	req.Header.Add("user_id", w.c.Auth)
+	req.Header.Set("AUTHORIZATION", w.c.Auth)
 	if isGzip {
 		req.Header.Add(headerContentEncoding, headerGzip)
 	}
@@ -109,6 +110,63 @@ func (w *HTTPWriter) executeReq(req *fasthttp.Request, resp *fasthttp.Response) 
 		}
 	}
 	return lat, err
+}
+
+func printFlatbuffersBody(body []byte) {
+	fmt.Printf("\nBody Length: %v\n", len(body))
+	points := models.GetRootAsPoints(body, 0)
+	point := &models.Point{}
+	tag := &models.Tag{}
+	field := &models.Field{}
+	for i := 0; i < points.PointsLength(); i++ {
+		points.Points(point, i)
+		fmt.Printf("Tags[%d]: ", point.TagsLength())
+		for j := 0; j < point.TagsLength(); j++ {
+			point.Tags(tag, j)
+			if tag.KeyLength() == 0 {
+				println("Key is empty")
+			}
+			tagKey := string(tag.KeyBytes())
+			fmt.Printf("{ %s: ", tagKey)
+			if tag.KeyLength() == 0 {
+				println("Value is empty")
+			}
+			tagValue := string(tag.ValueBytes())
+			fmt.Printf("%s }, ", tagValue)
+		}
+		fmt.Printf("\nFields[%d]: ", point.FieldsLength())
+		for j := 0; j < point.FieldsLength(); j++ {
+			point.Fields(field, j)
+			fieldName := string(field.NameBytes())
+			fmt.Printf("{ %s: ", fieldName)
+			fieldType := field.Type()
+			switch fieldType {
+			case models.FieldTypeInteger:
+				fieldValue := binary.BigEndian.Uint64(field.ValueBytes())
+				fmt.Printf("%d, ", int64(fieldValue))
+			case models.FieldTypeUnsigned:
+				fieldValue := binary.BigEndian.Uint64(field.ValueBytes())
+				fmt.Printf("%d, ", fieldValue)
+			case models.FieldTypeFloat:
+				fieldValue := binary.BigEndian.Uint64(field.ValueBytes())
+				fmt.Printf("%f, ", float64(fieldValue))
+			case models.FieldTypeBoolean:
+				fieldValue := field.ValueBytes()
+				if fieldValue[0] == 1 {
+					fmt.Printf("true, ")
+				} else {
+					fmt.Printf("false, ")
+				}
+			case models.FieldTypeString:
+				fieldValue := string(field.ValueBytes())
+				fmt.Printf("%s, ", fieldValue)
+			default:
+
+			}
+			fmt.Printf("%d }, ", field.Type())
+		}
+		fmt.Println()
+	}
 }
 
 // WriteLineProtocol writes the given byte slice to the HTTP server described in the Writer's HTTPWriterConfig.
@@ -262,6 +320,7 @@ func skipWhitespace(buf []byte, i int) int {
 }
 
 func parsePoint(fb *flatbuffers.Builder, buf []byte) flatbuffers.UOffsetT {
+	dbOff := fb.CreateByteVector([]byte("tsdb-comparisons"))
 	pos, key, err, mPos := scanKey(buf, 0)
 
 	if err != nil {
@@ -276,13 +335,13 @@ func parsePoint(fb *flatbuffers.Builder, buf []byte) flatbuffers.UOffsetT {
 	}
 	tableOff := fb.CreateByteVector(buf[0 : mPos-1])
 
-	tkValOffs, tvValOffs := parseTags(fb, buf[mPos:])
+	tkValOffs, tvValOffs := parseTags(fb, key[mPos:])
 	tagOffs := make([]flatbuffers.UOffsetT, len(tkValOffs))
 	for i := 0; i < len(tkValOffs); i++ {
 		models.TagStart(fb)
 		models.TagAddKey(fb, tkValOffs[i])
-		models.TagAddKey(fb, tvValOffs[i])
-		tagOffs = append(tagOffs, models.TagEnd(fb))
+		models.TagAddValue(fb, tvValOffs[i])
+		tagOffs[i] = models.TagEnd(fb)
 	}
 	models.PointStartTagsVector(fb, len(tagOffs))
 	for _, off := range tagOffs {
@@ -290,7 +349,7 @@ func parsePoint(fb *flatbuffers.Builder, buf []byte) flatbuffers.UOffsetT {
 	}
 	tagsOff := fb.EndVector(len(tagOffs))
 
-	pos, fields, err := scanFields(buf, pos)
+	pos, fields, fieldTypes, err := scanFields(buf, pos)
 	if err != nil {
 		panic(err)
 	}
@@ -303,9 +362,73 @@ func parsePoint(fb *flatbuffers.Builder, buf []byte) flatbuffers.UOffsetT {
 	var fvOffs []flatbuffers.UOffsetT
 	var fTyps []models.FieldType
 	err = walkFields(fields, func(k, v []byte) bool {
+		//fmt.Print("FieldKey: " + string(k) + ", FieldValue: " + string(v))
 		fkOffs = append(fkOffs, fb.CreateByteVector(k))
-		fvOffs = append(fvOffs, fb.CreateByteVector(v))
-		fTyps = append(fTyps, models.FieldTypeUnknown)
+
+		isNegative := false
+		fieldValStr := string(v)
+		if fieldValStr[0] == '-' {
+			isNegative = true
+			fieldValStr = fieldValStr[1:]
+		} else if fieldValStr[0] == '+' {
+			fieldValStr = fieldValStr[1:]
+		}
+
+		fType := fieldTypes[0]
+		fieldTypes = fieldTypes[1:]
+		numBuf := make([]byte, 8)
+		switch fType {
+		case models.FieldTypeInteger:
+			//fmt.Println(", FieldType: Integer")
+			fv, _ := strconv.ParseInt(fieldValStr[:len(fieldValStr)-1], 10, 64)
+			if isNegative {
+				fv = -fv
+			}
+			binary.BigEndian.PutUint64(numBuf, uint64(fv))
+			fvOffs = append(fvOffs, fb.CreateByteVector(numBuf))
+			fTyps = append(fTyps, models.FieldTypeInteger)
+		case models.FieldTypeUnsigned:
+			//fmt.Println(", FieldType: Unsigned")
+			fv, _ := strconv.ParseUint(fieldValStr[:len(fieldValStr)-1], 10, 64)
+			if isNegative {
+				fv = -fv
+			}
+			binary.BigEndian.PutUint64(numBuf, fv)
+			fvOffs = append(fvOffs, fb.CreateByteVector(numBuf))
+			fTyps = append(fTyps, models.FieldTypeUnsigned)
+		case models.FieldTypeFloat:
+			//fmt.Println(", FieldType: Float")
+			fv, _ := strconv.ParseFloat(fieldValStr, 10)
+			if isNegative {
+				fv = -fv
+			}
+			binary.BigEndian.PutUint64(numBuf, uint64(fv))
+			fvOffs = append(fvOffs, fb.CreateByteVector(numBuf))
+			fTyps = append(fTyps, models.FieldTypeFloat)
+		case models.FieldTypeBoolean:
+			//fmt.Println(", FieldType: Boolean")
+			if fieldValStr[0] == 't' || fieldValStr[0] == 'T' {
+				fvOffs = append(fvOffs, fb.CreateByteVector([]byte{1}))
+				fTyps = append(fTyps, models.FieldTypeBoolean)
+			} else if fieldValStr[0] == 'f' || fieldValStr[0] == 'F' {
+				fvOffs = append(fvOffs, fb.CreateByteVector([]byte{0}))
+				fTyps = append(fTyps, models.FieldTypeBoolean)
+			}
+		case models.FieldTypeString:
+			//fmt.Println(", FieldType: String")
+			if fieldValStr[0] == '"' {
+				fvOffs = append(fvOffs, fb.CreateByteVector([]byte(fieldValStr[1:len(fieldValStr)-1])))
+				fTyps = append(fTyps, models.FieldTypeString)
+			} else {
+				fvOffs = append(fvOffs, fb.CreateByteVector(v))
+				fTyps = append(fTyps, models.FieldTypeString)
+			}
+		default:
+			//fmt.Println(", FieldType: Unknown")
+			fvOffs = append(fvOffs, fb.CreateByteVector(v))
+			fTyps = append(fTyps, models.FieldTypeString)
+		}
+
 		i++
 		return true
 	})
@@ -315,7 +438,7 @@ func parsePoint(fb *flatbuffers.Builder, buf []byte) flatbuffers.UOffsetT {
 		models.FieldAddName(fb, fkOffs[i])
 		models.FieldAddValue(fb, fvOffs[i])
 		models.FieldAddType(fb, fTyps[i])
-		fieldOffs = append(fieldOffs, models.FieldEnd(fb))
+		fieldOffs[i] = models.FieldEnd(fb)
 	}
 	models.PointStartFieldsVector(fb, len(fieldOffs))
 	for _, off := range fieldOffs {
@@ -330,7 +453,8 @@ func parsePoint(fb *flatbuffers.Builder, buf []byte) flatbuffers.UOffsetT {
 	}
 
 	models.PointStart(fb)
-	models.PointAddDb(fb, tableOff)
+	models.PointAddDb(fb, dbOff)
+	models.PointAddTable(fb, tableOff)
 	models.PointAddTags(fb, tagsOff)
 	models.PointAddFields(fb, fieldsOff)
 	models.PointAddTimestamp(fb, int64(tsInt))
@@ -799,7 +923,7 @@ type escapeSet struct {
 	esc [2]byte
 }
 
-func scanFields(buf []byte, i int) (int, []byte, error) {
+func scanFields(buf []byte, i int) (int, []byte, []models.FieldType, error) {
 	start := skipWhitespace(buf, i)
 	i = start
 	quoted := false
@@ -810,6 +934,8 @@ func scanFields(buf []byte, i int) (int, []byte, error) {
 	// tracks how many commas we've seen
 	commas := 0
 
+	var types []models.FieldType
+	var typ models.FieldType
 	for {
 		// reached the end of buf?
 		if i >= len(buf) {
@@ -826,6 +952,7 @@ func scanFields(buf []byte, i int) (int, []byte, error) {
 		// Only quote values in the field value since quotes are not significant
 		// in the field key
 		if buf[i] == '"' && equals > commas {
+			types = append(types, models.FieldTypeBoolean)
 			quoted = !quoted
 			i++
 			continue
@@ -837,38 +964,40 @@ func scanFields(buf []byte, i int) (int, []byte, error) {
 
 			// check for "... =123" but allow "a\ =123"
 			if buf[i-1] == ' ' && buf[i-2] != '\\' {
-				return i, buf[start:i], fmt.Errorf("missing field key")
+				return i, buf[start:i], types, fmt.Errorf("missing field key")
 			}
 
 			// check for "...a=123,=456" but allow "a=123,a\,=456"
 			if buf[i-1] == ',' && buf[i-2] != '\\' {
-				return i, buf[start:i], fmt.Errorf("missing field key")
+				return i, buf[start:i], types, fmt.Errorf("missing field key")
 			}
 
 			// check for "... value="
 			if i+1 >= len(buf) {
-				return i, buf[start:i], fmt.Errorf("missing field value")
+				return i, buf[start:i], types, fmt.Errorf("missing field value")
 			}
 
 			// check for "... value=,value2=..."
 			if buf[i+1] == ',' || buf[i+1] == ' ' {
-				return i, buf[start:i], fmt.Errorf("missing field value")
+				return i, buf[start:i], types, fmt.Errorf("missing field value")
 			}
 
 			if isNumeric(buf[i+1]) || buf[i+1] == '-' || buf[i+1] == 'N' || buf[i+1] == 'n' {
 				var err error
-				i, err = scanNumber(buf, i+1)
+				typ, i, err = scanNumber(buf, i+1)
 				if err != nil {
-					return i, buf[start:i], err
+					return i, buf[start:i], types, err
 				}
+				types = append(types, typ)
 				continue
 			}
 			// If next byte is not a double-quote, the value must be a boolean
 			if buf[i+1] != '"' {
 				var err error
 				i, _, err = scanBoolean(buf, i+1)
+				types = append(types, models.FieldTypeBoolean)
 				if err != nil {
-					return i, buf[start:i], err
+					return i, buf[start:i], types, err
 				}
 				continue
 			}
@@ -886,22 +1015,22 @@ func scanFields(buf []byte, i int) (int, []byte, error) {
 	}
 
 	if quoted {
-		return i, buf[start:i], fmt.Errorf("unbalanced quotes")
+		return i, buf[start:i], types, fmt.Errorf("unbalanced quotes")
 	}
 
 	// check that all field sections had key and values (e.g. prevent "a=1,b"
 	if equals == 0 || commas != equals-1 {
-		return i, buf[start:i], fmt.Errorf("invalid field format")
+		return i, buf[start:i], types, fmt.Errorf("invalid field format")
 	}
 
-	return i, buf[start:i], nil
+	return i, buf[start:i], types, nil
 }
 
 func isNumeric(b byte) bool {
 	return (b >= '0' && b <= '9') || b == '.'
 }
 
-func scanNumber(buf []byte, i int) (int, error) {
+func scanNumber(buf []byte, i int) (models.FieldType, int, error) {
 	start := i
 	var isInt, isUnsigned bool
 
@@ -910,7 +1039,7 @@ func scanNumber(buf []byte, i int) (int, error) {
 		i++
 		// There must be more characters now, as just '-' is illegal.
 		if i == len(buf) {
-			return i, ErrInvalidNumber
+			return models.FieldTypeUnknown, i, ErrInvalidNumber
 		}
 	}
 
@@ -942,7 +1071,7 @@ func scanNumber(buf []byte, i int) (int, error) {
 		if buf[i] == '.' {
 			// Can't have more than 1 decimal (e.g. 1.1.1 should fail)
 			if decimal {
-				return i, ErrInvalidNumber
+				return models.FieldTypeUnknown, i, ErrInvalidNumber
 			}
 			decimal = true
 		}
@@ -962,17 +1091,17 @@ func scanNumber(buf []byte, i int) (int, error) {
 
 		// NaN is an unsupported value
 		if i+2 < len(buf) && (buf[i] == 'N' || buf[i] == 'n') {
-			return i, ErrInvalidNumber
+			return models.FieldTypeUnknown, i, ErrInvalidNumber
 		}
 
 		if !isNumeric(buf[i]) {
-			return i, ErrInvalidNumber
+			return models.FieldTypeUnknown, i, ErrInvalidNumber
 		}
 		i++
 	}
 
 	if (isInt || isUnsigned) && (decimal || scientific) {
-		return i, ErrInvalidNumber
+		return models.FieldTypeUnknown, i, ErrInvalidNumber
 	}
 
 	numericDigits := i - start
@@ -987,8 +1116,10 @@ func scanNumber(buf []byte, i int) (int, error) {
 	}
 
 	if numericDigits == 0 {
-		return i, ErrInvalidNumber
+		return models.FieldTypeUnknown, i, ErrInvalidNumber
 	}
+
+	numType := models.FieldTypeUnknown
 
 	// It's more common that numbers will be within min/max range for their type but we need to prevent
 	// out or range numbers from being parsed successfully.  This uses some simple heuristics to decide
@@ -997,41 +1128,44 @@ func scanNumber(buf []byte, i int) (int, error) {
 	if isInt {
 		// Make sure the last char is an 'i' for integers (e.g. 9i10 is not valid)
 		if buf[i-1] != 'i' {
-			return i, ErrInvalidNumber
+			return models.FieldTypeUnknown, i, ErrInvalidNumber
 		}
 		// Parse the int to check bounds the number of digits could be larger than the max range
 		// We subtract 1 from the index to remove the `i` from our tests
 		if len(buf[start:i-1]) >= maxInt64Digits || len(buf[start:i-1]) >= minInt64Digits {
 			if _, err := parseIntBytes(buf[start:i-1], 10, 64); err != nil {
-				return i, fmt.Errorf("unable to parse integer %s: %s", buf[start:i-1], err)
+				return models.FieldTypeUnknown, i, fmt.Errorf("unable to parse integer %s: %s", buf[start:i-1], err)
 			}
 		}
+		numType = models.FieldTypeInteger
 	} else if isUnsigned {
 		// Make sure the last char is a 'u' for unsigned
 		if buf[i-1] != 'u' {
-			return i, ErrInvalidNumber
+			return models.FieldTypeUnknown, i, ErrInvalidNumber
 		}
 		// Make sure the first char is not a '-' for unsigned
 		if buf[start] == '-' {
-			return i, ErrInvalidNumber
+			return models.FieldTypeUnknown, i, ErrInvalidNumber
 		}
 		// Parse the uint to check bounds the number of digits could be larger than the max range
 		// We subtract 1 from the index to remove the `u` from our tests
 		if len(buf[start:i-1]) >= maxUint64Digits {
 			if _, err := parseUintBytes(buf[start:i-1], 10, 64); err != nil {
-				return i, fmt.Errorf("unable to parse unsigned %s: %s", buf[start:i-1], err)
+				return models.FieldTypeUnknown, i, fmt.Errorf("unable to parse unsigned %s: %s", buf[start:i-1], err)
 			}
 		}
+		numType = models.FieldTypeUnsigned
 	} else {
 		// Parse the float to check bounds if it's scientific or the number of digits could be larger than the max range
 		if scientific || len(buf[start:i]) >= maxFloat64Digits || len(buf[start:i]) >= minFloat64Digits {
 			if _, err := parseFloatBytes(buf[start:i], 64); err != nil {
-				return i, fmt.Errorf("invalid float")
+				return models.FieldTypeUnknown, i, fmt.Errorf("invalid float")
 			}
 		}
+		numType = models.FieldTypeFloat
 	}
 
-	return i, nil
+	return numType, i, nil
 }
 
 func scanBoolean(buf []byte, i int) (int, []byte, error) {
