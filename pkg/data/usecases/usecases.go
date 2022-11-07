@@ -20,14 +20,14 @@ func GetSimulatorConfig(dgc *common.DataGeneratorConfig) (common.SimulatorConfig
 	if err != nil {
 		return nil, fmt.Errorf(errCannotParseTimeFmt, dgc.TimeEnd, err)
 	}
-	
+
 	switch dgc.Use {
-	
+
 	case common.UseCaseIoT:
 		ret = &iot.SimulatorConfig{
 			Start: tsStart,
 			End:   tsEnd,
-			
+
 			InitGeneratorScale:   dgc.InitialScale,
 			GeneratorScale:       dgc.Scale,
 			GeneratorConstructor: iot.NewTruck,

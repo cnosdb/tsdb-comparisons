@@ -20,34 +20,34 @@ func parseConfig(target targets.ImplementedTarget, v *viper.Viper) (targets.Benc
 		return nil, nil, err
 	}
 	dataSourceInternal := convertDataSourceConfigToInternalRepresentation(target.TargetName(), dataSource)
-	
+
 	loaderViper := v.Sub("loader")
 	if loaderViper == nil {
 		return nil, nil, fmt.Errorf("config file didn't have a top-level 'loader' object")
 	}
-	
+
 	runnerViper := loaderViper.Sub("runner")
 	if runnerViper == nil {
 		return nil, nil, fmt.Errorf("config file didn't have loader.runner specified")
 	}
-	
+
 	loaderConfig, err := parseRunnerConfig(runnerViper)
 	if err != nil {
 		return nil, nil, err
 	}
-	
+
 	loaderConfigInternal := convertRunnerConfigToInternalRep(loaderConfig)
-	
+
 	dbSpecificViper := loaderViper.Sub("db-specific")
 	if dbSpecificViper == nil {
 		return nil, nil, fmt.Errorf("config file didn't have loader.db-specific specified")
 	}
-	
+
 	benchmark, err := target.Benchmark(loaderConfigInternal.DBName, dataSourceInternal, dbSpecificViper)
 	if err != nil {
 		return nil, nil, err
 	}
-	
+
 	return benchmark, load.GetBenchmarkRunner(*loaderConfigInternal), nil
 }
 
@@ -94,7 +94,7 @@ func parseDataSourceConfig(v *viper.Viper) (*DataSourceConfig, error) {
 	if err := validateSourceType(conf.Type); err != nil {
 		return nil, err
 	}
-	
+
 	if conf.Type == source.FileDataSourceType {
 		if conf.File == nil {
 			errStr := fmt.Sprintf(
@@ -105,7 +105,7 @@ func parseDataSourceConfig(v *viper.Viper) (*DataSourceConfig, error) {
 		}
 		return &conf, nil
 	}
-	
+
 	if conf.Simulator == nil {
 		errStr := fmt.Sprintf(
 			"specified type %s, but no simulator data source config provided",
@@ -141,8 +141,8 @@ func convertDataSourceConfigToInternalRepresentation(format string, d *DataSourc
 		}
 	}
 	return &source.DataSourceConfig{
-		Type: d.Type,
-		File: file,
+		Type:      d.Type,
+		File:      file,
 		Simulator: simulator,
 	}
 }

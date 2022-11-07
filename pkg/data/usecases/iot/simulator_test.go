@@ -35,7 +35,7 @@ func (m *mockBaseSimulator) Next(p *data.Point) bool {
 	}
 	p.Copy(m.pending[m.current])
 	m.current++
-	
+
 	return true
 }
 
@@ -63,37 +63,37 @@ func newMockBaseSimulator() *mockBaseSimulator {
 	fieldKeys := make([][]byte, fieldCount)
 	tagKeys := make([][]byte, tagCount)
 	pending := make([]*data.Point, pointCount)
-	
+
 	for i := 0; i < fieldCount; i++ {
 		fieldKeys[i] = []byte(fmt.Sprintf("field_key_%d", i))
 	}
-	
+
 	for i := 0; i < fieldCount; i++ {
 		fields[fmt.Sprintf("measurement_%d", i)] = fieldKeys
 	}
-	
+
 	for i := 0; i < tagCount; i++ {
 		tagKeys[i] = []byte(fmt.Sprintf("tag_key_%d", i))
 	}
-	
+
 	now := time.Now()
-	
+
 	for i := 0; i < pointCount; i++ {
 		pending[i] = data.NewPoint()
 		pending[i].SetTimestamp(&now)
 		pending[i].SetMeasurementName([]byte(fmt.Sprintf("measurement_%d", i%fieldCount)))
-		
+
 		for j := 0; j < tagCount; j++ {
 			pending[i].AppendTag(tagKeys[j], []byte(fmt.Sprintf("tag_value_%d_%d", i, j)))
 		}
-		
+
 		fieldKey := fields[fmt.Sprintf("measurement_%d", i%fieldCount)]
-		
+
 		for j := 0; j < fieldCount; j++ {
 			pending[i].AppendField(fieldKey[j], fmt.Sprintf("field_value_%d_%d", i, j))
 		}
 	}
-	
+
 	fieldsAsStr := make(map[string][]string, fieldCount)
 	for k := range fields {
 		fieldValsAsBytes := fields[k]
@@ -123,12 +123,12 @@ func checkResults(initial []*data.Point, results []*data.Point, expectedOrder []
 		if initial[expected] == nil {
 			return i, false
 		}
-		
+
 		if !pointsEqual(initial[expected], results[i]) {
 			return i, false
 		}
 	}
-	
+
 	return 0, true
 }
 func pointsEqual(one *data.Point, two *data.Point) bool {
@@ -492,7 +492,7 @@ func TestSimulatorNext(t *testing.T) {
 			},
 		},
 	}
-	
+
 	for _, c := range cases {
 		t.Run(c.desc, func(t *testing.T) {
 			for batchSize, result := range c.resultsPerBatchSize {
@@ -503,9 +503,9 @@ func TestSimulatorNext(t *testing.T) {
 						batchSize:       uint(batchSize),
 						configGenerator: c.config(batchSize),
 					}
-					
+
 					results := make([]*data.Point, 0)
-					
+
 					for i := 0; i < pointCount; i++ {
 						point := data.NewPoint()
 						valid := s.Next(point)
@@ -514,15 +514,15 @@ func TestSimulatorNext(t *testing.T) {
 						}
 						results = append(results, point)
 					}
-					
+
 					if !s.Finished() {
 						t.Errorf("simulator not finished, should be done")
 					}
-					
+
 					if len(result) != len(results) {
 						t.Fatalf("simulator didn't return correct number of points, got %d want %d", len(results), len(result))
 					}
-					
+
 					// If we are checking zeros, we cannot check for equality since
 					// a zero field or a zero tag will create a difference.
 					if c.zeroFieldsResults[batchSize] != nil || c.zeroTagsResults[batchSize] != nil {
@@ -535,16 +535,16 @@ func TestSimulatorNext(t *testing.T) {
 							if zeroFields != nil && i < len(zeroFields) && zeroFields[i] >= 0 {
 								got.ClearFieldValue(fieldKeys[zeroFields[i]])
 							}
-							
+
 							if zeroTags != nil && i < len(zeroTags) && zeroTags[i] >= 0 {
 								got.ClearTagValue(tagKeys[zeroTags[i]])
 							}
-							
+
 							if !pointsEqual(got, results[i]) {
 								t.Errorf("result entry at index %d has wrong zero field and/or zero tag:\ngot\n%v\nwant\n%v", i, got, results[i])
 							}
 						}
-						
+
 					} else {
 						if i, ok := checkResults(m.pending, results, result); !ok {
 							t.Errorf("results not as expected at index %d:\ngot\n%v\nwant\n%v", i, results[i], m.pending[result[i]])
@@ -554,14 +554,14 @@ func TestSimulatorNext(t *testing.T) {
 			}
 		})
 	}
-	
+
 }
 
 func TestSimulatorTagTypes(t *testing.T) {
 	sc := &SimulatorConfig{
 		Start: time.Now(),
 		End:   time.Now(),
-		
+
 		InitGeneratorScale:   1,
 		GeneratorScale:       1,
 		GeneratorConstructor: NewTruck,

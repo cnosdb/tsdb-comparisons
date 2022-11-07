@@ -2,9 +2,9 @@ package main
 
 import (
 	"fmt"
-	"github.com/spf13/pflag"
 	"github.com/cnosdb/tsdb-comparisons/load"
 	"github.com/cnosdb/tsdb-comparisons/pkg/data/source"
+	"github.com/spf13/pflag"
 	"strings"
 	"time"
 )

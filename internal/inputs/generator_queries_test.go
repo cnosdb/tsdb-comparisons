@@ -12,9 +12,9 @@ import (
 	"strings"
 	"testing"
 	"time"
-	
+
 	"github.com/cnosdb/tsdb-comparisons/cmd/generate_queries/databases/influx"
-	
+
 	"github.com/cnosdb/tsdb-comparisons/cmd/generate_queries/databases/timescaledb"
 	queryUtils "github.com/cnosdb/tsdb-comparisons/cmd/generate_queries/utils"
 	internalUtils "github.com/cnosdb/tsdb-comparisons/internal/utils"
@@ -41,20 +41,20 @@ func TestQueryGeneratorConfigValidate(t *testing.T) {
 		InterleavedGroupID:   0,
 		InterleavedNumGroups: 1,
 	}
-	
+
 	// Test base validation
 	err := c.Validate()
 	if err != nil {
 		t.Errorf("unexpected error for correct config: %v", err)
 	}
-	
+
 	c.Format = "bad format"
 	err = c.Validate()
 	if err == nil {
 		t.Errorf("unexpected lack of error for bad format")
 	}
 	c.Format = constants.FormatTimescaleDB
-	
+
 	// Test QueryType validation
 	c.QueryType = ""
 	err = c.Validate()
@@ -62,7 +62,7 @@ func TestQueryGeneratorConfigValidate(t *testing.T) {
 		t.Errorf("unexpected lack of error for empty query type")
 	}
 	c.QueryType = "foo"
-	
+
 	// Test groups validation
 	c.InterleavedNumGroups = 0
 	err = c.Validate()
@@ -72,7 +72,7 @@ func TestQueryGeneratorConfigValidate(t *testing.T) {
 		t.Errorf("incorrect error for 0 groups: got\n%s\nwant\n%s", got, errTotalGroupsZero)
 	}
 	c.InterleavedNumGroups = 1
-	
+
 	c.InterleavedGroupID = 2
 	err = c.Validate()
 	if err == nil {
@@ -118,7 +118,7 @@ func TestQueryGeneratorInit(t *testing.T) {
 	} else if got := err.Error(); got != ErrNoConfig {
 		t.Errorf("incorrect error: got\n%s\nwant\n%s", got, ErrNoConfig)
 	}
-	
+
 	// Test that wrong type of config fails
 	err = g.init(&common.BaseConfig{})
 	if err == nil {
@@ -126,13 +126,13 @@ func TestQueryGeneratorInit(t *testing.T) {
 	} else if got := err.Error(); got != ErrInvalidDataConfig {
 		t.Errorf("incorrect error: got\n%s\nwant\n%s", got, ErrInvalidDataConfig)
 	}
-	
+
 	// Test that empty, invalid config fails
 	err = g.init(&config.QueryGeneratorConfig{})
 	if err == nil {
 		t.Errorf("unexpected lack of error with empty QueryGeneratorConfig")
 	}
-	
+
 	c := &config.QueryGeneratorConfig{
 		BaseConfig: common.BaseConfig{
 			Format: constants.FormatTimescaleDB,
@@ -142,7 +142,7 @@ func TestQueryGeneratorInit(t *testing.T) {
 		QueryType:            "unknown query type",
 		InterleavedNumGroups: 1,
 	}
-	
+
 	// Test use case not in matrix
 	err = g.init(c)
 	want := fmt.Sprintf(errBadUseFmt, common.UseCaseIoT)
@@ -152,7 +152,7 @@ func TestQueryGeneratorInit(t *testing.T) {
 		t.Errorf("incorrect error for bad use case:\ngot\n%s\nwant\n%s", got, want)
 	}
 	c.Use = common.UseCaseIoT
-	
+
 	// Test unknown query type
 	err = g.init(c)
 	want = fmt.Sprintf(errBadQueryTypeFmt, common.UseCaseIoT, "unknown query type")
@@ -162,9 +162,9 @@ func TestQueryGeneratorInit(t *testing.T) {
 		t.Errorf("incorrect error for bad query type:\ngot\n%s\nwant\n%s", got, want)
 	}
 	c.QueryType = okQueryType
-	
+
 	const errTimePrefix = "cannot parse time from string"
-	
+
 	// Test incorrect time format for start
 	c.TimeStart = "2006 Jan 2"
 	err = g.init(c)
@@ -174,7 +174,7 @@ func TestQueryGeneratorInit(t *testing.T) {
 		t.Errorf("unexpected error for bad start date: got\n%s", got)
 	}
 	c.TimeStart = defaultTimeStart
-	
+
 	// Test incorrect time format for end
 	c.TimeEnd = "Jan 3rd 2016"
 	err = g.init(c)
@@ -184,7 +184,7 @@ func TestQueryGeneratorInit(t *testing.T) {
 		t.Errorf("unexpected error for bad end date: got\n%s", got)
 	}
 	c.TimeEnd = defaultTimeEnd
-	
+
 	// Test that Out is set to os.Stdout if unset
 	err = g.init(c)
 	if err != nil {
@@ -192,7 +192,7 @@ func TestQueryGeneratorInit(t *testing.T) {
 	} else if g.Out != os.Stdout {
 		t.Errorf("Out not set to Stdout")
 	}
-	
+
 	// Test that Out is same if set
 	var buf bytes.Buffer
 	g.Out = &buf
@@ -202,7 +202,7 @@ func TestQueryGeneratorInit(t *testing.T) {
 	} else if g.Out != &buf {
 		t.Errorf("Out not set to explicit io.Writer")
 	}
-	
+
 	// Test that DebugOut is set to os.Stderr if unset
 	err = g.init(c)
 	if err != nil {
@@ -235,7 +235,7 @@ func TestGetUseCaseGenerator(t *testing.T) {
 		factories:     make(map[string]interface{}),
 		useCaseMatrix: useCaseMatrix,
 	}
-	
+
 	checkType := func(format string, want queryUtils.QueryGenerator) queryUtils.QueryGenerator {
 		wantType := reflect.TypeOf(want)
 		c.Format = format
@@ -243,11 +243,11 @@ func TestGetUseCaseGenerator(t *testing.T) {
 		c.QueryType = "lastpoint"
 		c.InterleavedNumGroups = 1
 		err := g.init(c)
-		
+
 		if err != nil {
 			t.Fatalf("Error initializing query generator: %s", err)
 		}
-		
+
 		useGen, err := g.getUseCaseGenerator(c)
 		if err != nil {
 			t.Errorf("unexpected error with format '%s': %v", format, err)
@@ -255,20 +255,20 @@ func TestGetUseCaseGenerator(t *testing.T) {
 		if got := reflect.TypeOf(useGen); got != wantType {
 			t.Errorf("format '%s' does not give right use case gen: got %v want %v", format, got, wantType)
 		}
-		
+
 		return useGen
 	}
-	
+
 	bi := influx.BaseGenerator{}
 	indb, err := bi.NewDevops(tsStart, tsEnd, scale)
 	if err != nil {
 		t.Fatalf("Error creating influx query generator")
 	}
 	checkType(constants.FormatInflux, indb)
-	
+
 	bt := timescaledb.BaseGenerator{}
 	ts, err := bt.NewDevops(tsStart, tsEnd, scale)
-	
+
 	checkType(constants.FormatTimescaleDB, ts)
 	if got := ts.(*timescaledb.Devops).UseTags; got != c.TimescaleUseTags {
 		t.Errorf("timescaledb UseTags not set correctly: got %v want %v", got, c.TimescaleUseTags)
@@ -279,7 +279,7 @@ func TestGetUseCaseGenerator(t *testing.T) {
 	if got := ts.(*timescaledb.Devops).UseTimeBucket; got != c.TimescaleUseTimeBucket {
 		t.Errorf("timescaledb UseTimeBucket not set correctly: got %v want %v", got, c.TimescaleUseTimeBucket)
 	}
-	
+
 	bt.UseJSON = true
 	bt.UseTags = true
 	bt.UseTimeBucket = true
@@ -297,7 +297,7 @@ func TestGetUseCaseGenerator(t *testing.T) {
 	if got := tts.(*timescaledb.Devops).UseTimeBucket; got != c.TimescaleUseTimeBucket {
 		t.Errorf("timescaledb UseTimeBucket not set correctly: got %v want %v", got, c.TimescaleUseTimeBucket)
 	}
-	
+
 	// Test error condition
 	c.Format = "bad format"
 	useGen, err := g.getUseCaseGenerator(c)
@@ -376,7 +376,7 @@ func getTestConfigAndGenerator() (*config.QueryGeneratorConfig, *QueryGenerator)
 		DebugOut:  os.Stderr,
 		factories: make(map[string]interface{}),
 	}
-	
+
 	return c, g
 }
 
@@ -445,7 +445,7 @@ func TestQueryGeneratorRunQueryGeneration(t *testing.T) {
 			},
 		},
 	}
-	
+
 	for _, c := range cases {
 		config, g := getTestConfigAndGenerator()
 		config.Debug = c.level
@@ -453,25 +453,25 @@ func TestQueryGeneratorRunQueryGeneration(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Error initializing query generator: %s", err)
 		}
-		
+
 		var buf bytes.Buffer
 		g.bufOut = bufio.NewWriter(&buf)
 		var debug bytes.Buffer
 		g.DebugOut = &debug
-		
+
 		useGen, err := g.getUseCaseGenerator(config)
 		if err != nil {
 			t.Fatalf("could not get use case gen: %v", err)
 		}
 		filler := g.useCaseMatrix[config.Use][config.QueryType](useGen)
-		
+
 		err = g.runQueryGeneration(useGen, filler, config)
 		if err != nil {
 			t.Errorf("unexpected error: got %v", err)
 		}
-		
+
 		checkGeneratedOutput(t, &buf)
-		
+
 		// Check that the proper debug output was written
 		wantDebug := strings.TrimSpace(strings.Join(c.wantDebug, "\n"))
 		if got := strings.TrimSpace(debug.String()); got != wantDebug {
@@ -498,13 +498,13 @@ func TestQueryGeneratorRunQueryGenerationErrors(t *testing.T) {
 	var buf bytes.Buffer
 	g.bufOut = bufio.NewWriter(&buf)
 	g.init(c)
-	
+
 	useGen, err := g.getUseCaseGenerator(c)
 	if err != nil {
 		t.Fatalf("could not get use case gen: %v", err)
 	}
 	filler := g.useCaseMatrix[c.Use][c.QueryType](useGen)
-	
+
 	checkErr := func(want string) {
 		err = g.runQueryGeneration(useGen, filler, c)
 		if err == nil {
@@ -513,24 +513,24 @@ func TestQueryGeneratorRunQueryGenerationErrors(t *testing.T) {
 			t.Errorf("incorrect error for output query stats:\ngot\n%s\nwant\n%s", got, want)
 		}
 	}
-	
+
 	// Test error condition when printing stats
 	g.DebugOut = &badWriter{}
 	want := fmt.Sprintf(errCouldNotQueryStatsFmt, "error writing")
 	checkErr(want)
-	
+
 	// Test error condition when printing seed
 	c.Debug = 1
 	want = fmt.Sprintf(errCouldNotDebugFmt, "error writing")
 	checkErr(want)
-	
+
 	// Test error condition inside loop; first debug is success
 	g.DebugOut = &badWriter{when: 1}
 	checkErr(want)
-	
+
 	g.DebugOut = &badWriter{when: 2}
 	checkErr(want)
-	
+
 	// Test error on encoding
 	g.DebugOut = &badWriter{when: 10000}
 	g.bufOut = bufio.NewWriterSize(&badWriter{}, 8) // small buffer forces it to write to underlying
@@ -542,14 +542,14 @@ func TestQueryGeneratorGenerate(t *testing.T) {
 	g := &QueryGenerator{
 		factories: make(map[string]interface{}),
 	}
-	
+
 	// Test that an invalid config fails
 	c := &config.QueryGeneratorConfig{}
 	err := g.Generate(c)
 	if err == nil {
 		t.Errorf("unexpected lack of error with empty QueryGeneratorConfig")
 	}
-	
+
 	c, g = getTestConfigAndGenerator()
 	var buf bytes.Buffer
 	g.Out = &buf

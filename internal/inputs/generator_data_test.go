@@ -8,7 +8,7 @@ import (
 	"os"
 	"testing"
 	"time"
-	
+
 	"github.com/blagojts/viper"
 	"github.com/cnosdb/tsdb-comparisons/pkg/data"
 	"github.com/cnosdb/tsdb-comparisons/pkg/data/serialize"
@@ -35,7 +35,7 @@ func TestDataGeneratorInit(t *testing.T) {
 	} else if got := err.Error(); got != ErrNoConfig {
 		t.Errorf("incorrect error: got\n%s\nwant\n%s", got, ErrNoConfig)
 	}
-	
+
 	// Test that wrong type of config fails
 	err = dg.init(&common.BaseConfig{})
 	if err == nil {
@@ -43,13 +43,13 @@ func TestDataGeneratorInit(t *testing.T) {
 	} else if got := err.Error(); got != ErrInvalidDataConfig {
 		t.Errorf("incorrect error: got\n%s\nwant\n%s", got, ErrInvalidDataConfig)
 	}
-	
+
 	// Test that empty, invalid config fails
 	err = dg.init(&common.DataGeneratorConfig{})
 	if err == nil {
 		t.Errorf("unexpected lack of error with empty DataGeneratorConfig")
 	}
-	
+
 	c := &common.DataGeneratorConfig{
 		BaseConfig: common.BaseConfig{
 			Format: constants.FormatTimescaleDB,
@@ -59,7 +59,7 @@ func TestDataGeneratorInit(t *testing.T) {
 		LogInterval:          time.Second,
 		InterleavedNumGroups: 1,
 	}
-	
+
 	// Test that Out is set to os.Stdout if unset
 	err = dg.init(c)
 	if err != nil {
@@ -67,7 +67,7 @@ func TestDataGeneratorInit(t *testing.T) {
 	} else if dg.Out != os.Stdout {
 		t.Errorf("Out not set to Stdout")
 	}
-	
+
 	// Test that Out is same if set
 	var buf bytes.Buffer
 	dg.Out = &buf
@@ -91,7 +91,7 @@ func TestDataGeneratorGenerate(t *testing.T) {
 	if err == nil {
 		t.Errorf("unexpected lack of error with empty DataGeneratorConfig")
 	}
-	
+
 	c = &common.DataGeneratorConfig{
 		BaseConfig: common.BaseConfig{
 			Seed:      123,
@@ -165,7 +165,7 @@ func (s *testSerializer) Serialize(p *data.Point, w io.Writer) error {
 	if s.shouldError {
 		return fmt.Errorf("erroring")
 	}
-	
+
 	w.Write(keyIteration)
 	w.Write([]byte("="))
 	str := fmt.Sprintf("%d", p.GetFieldValue(keyIteration).(uint64))
@@ -256,7 +256,7 @@ func TestRunSimulator(t *testing.T) {
 			shouldWriteLimit: c.shouldWriteLimit,
 		}
 		serializer := &testSerializer{shouldError: c.shouldError}
-		
+
 		err := g.runSimulator(sim, serializer, dgc)
 		if c.shouldError && err == nil {
 			t.Errorf("%s: unexpected lack of error", c.desc)
@@ -300,12 +300,12 @@ func TestGetSerializer(t *testing.T) {
 	g := &DataGenerator{
 		config: dgc,
 	}
-	
+
 	scfg, err := usecases.GetSimulatorConfig(dgc)
 	if err != nil {
 		t.Errorf("unexpected error creating scfg: %v", err)
 	}
-	
+
 	sim := scfg.NewSimulator(dgc.LogInterval, 0)
 	checkWriteHeader := func(format string, shouldWriteHeader bool) {
 		var buf bytes.Buffer
@@ -329,7 +329,7 @@ func TestGetSerializer(t *testing.T) {
 			t.Errorf("unexpected header for format %s", format)
 		}
 	}
-	
+
 	checkWriteHeader(constants.FormatInflux, false)
 	checkWriteHeader(constants.FormatTimescaleDB, true)
 }

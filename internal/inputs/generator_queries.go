@@ -9,7 +9,7 @@ import (
 	"os"
 	"sort"
 	"time"
-	
+
 	queryUtils "github.com/cnosdb/tsdb-comparisons/cmd/generate_queries/utils"
 	internalUtils "github.com/cnosdb/tsdb-comparisons/internal/utils"
 	"github.com/cnosdb/tsdb-comparisons/pkg/data/usecases/common"
@@ -47,7 +47,7 @@ type QueryGenerator struct {
 	// DebugOut is where non-generated messages should be written. If nil, it
 	// will be os.Stderr.
 	DebugOut io.Writer
-	
+
 	conf          *config.QueryGeneratorConfig
 	useCaseMatrix map[string]map[string]queryUtils.QueryFillerMaker
 	// factories contains all the database implementations which can create
@@ -55,7 +55,7 @@ type QueryGenerator struct {
 	factories map[string]interface{}
 	tsStart   time.Time
 	tsEnd     time.Time
-	
+
 	// bufOut represents the buffered writer that should actually be passed to
 	// any operations that write out data.
 	bufOut *bufio.Writer
@@ -76,14 +76,14 @@ func (g *QueryGenerator) Generate(config common.GeneratorConfig) error {
 	if err != nil {
 		return err
 	}
-	
+
 	useGen, err := g.getUseCaseGenerator(g.conf)
 	if err != nil {
 		return err
 	}
-	
+
 	filler := g.useCaseMatrix[g.conf.Use][g.conf.QueryType](useGen)
-	
+
 	return g.runQueryGeneration(useGen, filler, g.conf)
 }
 
@@ -97,24 +97,24 @@ func (g *QueryGenerator) init(conf common.GeneratorConfig) error {
 		return fmt.Errorf(ErrInvalidDataConfig)
 	}
 	g.conf = conf.(*config.QueryGeneratorConfig)
-	
+
 	err := g.conf.Validate()
 	if err != nil {
 		return err
 	}
-	
+
 	if err := g.initFactories(); err != nil {
 		return err
 	}
-	
+
 	if _, ok := g.useCaseMatrix[g.conf.Use]; !ok {
 		return fmt.Errorf(errBadUseFmt, g.conf.Use)
 	}
-	
+
 	if _, ok := g.useCaseMatrix[g.conf.Use][g.conf.QueryType]; !ok {
 		return fmt.Errorf(errBadQueryTypeFmt, g.conf.Use, g.conf.QueryType)
 	}
-	
+
 	g.tsStart, err = internalUtils.ParseUTCTime(g.conf.TimeStart)
 	if err != nil {
 		return fmt.Errorf(errCannotParseTimeFmt, g.conf.TimeStart, err)
@@ -123,7 +123,7 @@ func (g *QueryGenerator) init(conf common.GeneratorConfig) error {
 	if err != nil {
 		return fmt.Errorf(errCannotParseTimeFmt, g.conf.TimeEnd, err)
 	}
-	
+
 	if g.Out == nil {
 		g.Out = os.Stdout
 	}
@@ -131,11 +131,11 @@ func (g *QueryGenerator) init(conf common.GeneratorConfig) error {
 	if err != nil {
 		return err
 	}
-	
+
 	if g.DebugOut == nil {
 		g.DebugOut = os.Stderr
 	}
-	
+
 	return nil
 }
 
@@ -151,18 +151,18 @@ func (g *QueryGenerator) initFactories() error {
 
 func (g *QueryGenerator) addFactory(database string, factory interface{}) error {
 	validFactory := false
-	
+
 	switch factory.(type) {
 	case IoTGeneratorMaker:
 		validFactory = true
 	}
-	
+
 	if !validFactory {
 		return fmt.Errorf(errInvalidFactory, database)
 	}
-	
+
 	g.factories[database] = factory
-	
+
 	return nil
 }
 
@@ -170,19 +170,19 @@ func (g *QueryGenerator) getUseCaseGenerator(c *config.QueryGeneratorConfig) (qu
 	scale := int(c.Scale) // TODO: make all the Devops constructors use a uint64
 	var factory interface{}
 	var ok bool
-	
+
 	if factory, ok = g.factories[c.Format]; !ok {
 		return nil, fmt.Errorf(errUnknownFormatFmt, c.Format)
 	}
-	
+
 	switch c.Use {
 	case common.UseCaseIoT:
 		iotFactory, ok := factory.(IoTGeneratorMaker)
-		
+
 		if !ok {
 			return nil, fmt.Errorf(errUseCaseNotImplementedFmt, c.Use, c.Format)
 		}
-		
+
 		return iotFactory.NewIoT(g.tsStart, g.tsEnd, scale)
 	default:
 		return nil, fmt.Errorf(errUnknownUseCaseFmt, c.Use)
@@ -194,7 +194,7 @@ func (g *QueryGenerator) runQueryGeneration(useGen queryUtils.QueryGenerator, fi
 	currentGroup := uint(0)
 	enc := gob.NewEncoder(g.bufOut)
 	defer g.bufOut.Flush()
-	
+
 	rand.Seed(g.conf.Seed)
 	// fmt.Println(g.config.Seed)
 	if g.conf.Debug > 0 {
@@ -203,18 +203,18 @@ func (g *QueryGenerator) runQueryGeneration(useGen queryUtils.QueryGenerator, fi
 			return fmt.Errorf(errCouldNotDebugFmt, err)
 		}
 	}
-	
+
 	for i := 0; i < int(c.Limit); i++ {
 		q := useGen.GenerateEmptyQuery()
 		q = filler.Fill(q)
-		
+
 		if currentGroup == c.InterleavedGroupID {
 			err := enc.Encode(q)
 			if err != nil {
 				return fmt.Errorf(errCouldNotEncodeQueryFmt, err)
 			}
 			stats[string(q.HumanLabelName())]++
-			
+
 			if c.Debug > 0 {
 				var debugMsg string
 				if c.Debug == 1 {
@@ -224,7 +224,7 @@ func (g *QueryGenerator) runQueryGeneration(useGen queryUtils.QueryGenerator, fi
 				} else if c.Debug >= 3 {
 					debugMsg = q.String()
 				}
-				
+
 				_, err = fmt.Fprintf(g.DebugOut, debugMsg+"\n")
 				if err != nil {
 					return fmt.Errorf(errCouldNotDebugFmt, err)
@@ -232,13 +232,13 @@ func (g *QueryGenerator) runQueryGeneration(useGen queryUtils.QueryGenerator, fi
 			}
 		}
 		q.Release()
-		
+
 		currentGroup++
 		if currentGroup == c.InterleavedNumGroups {
 			currentGroup = 0
 		}
 	}
-	
+
 	// Print stats:
 	keys := []string{}
 	for k := range stats {

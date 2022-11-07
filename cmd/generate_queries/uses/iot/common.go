@@ -5,7 +5,7 @@ import (
 	"github.com/cnosdb/tsdb-comparisons/pkg/data/usecases/iot"
 	"math/rand"
 	"time"
-	
+
 	"github.com/cnosdb/tsdb-comparisons/cmd/generate_queries/uses/common"
 	"github.com/cnosdb/tsdb-comparisons/pkg/query"
 )
@@ -17,7 +17,7 @@ const (
 	// DiagnosticsTableName is the name of the table where all the diagnostics
 	// time series data is stored.
 	DiagnosticsTableName = "diagnostics"
-	
+
 	// StationaryDuration is the time duration to evaluate stationary trucks.
 	StationaryDuration = 10 * time.Minute
 	// LongDrivingSessionDuration is the the time duration which is considered a
@@ -25,7 +25,7 @@ const (
 	LongDrivingSessionDuration = 4 * time.Hour
 	// DailyDrivingDuration is time duration of one day of driving.
 	DailyDrivingDuration = 24 * time.Hour
-	
+
 	// LabelLastLoc is the label for the last location query.
 	LabelLastLoc = "last-loc"
 	// LabelLastLocSingleTruck is the label for the last location query for a single truck.
@@ -68,7 +68,7 @@ func (c Core) GetRandomFleet() string {
 func NewCore(start, end time.Time, scale int) (*Core, error) {
 	c, err := common.NewCore(start, end, scale)
 	return &Core{Core: c}, err
-	
+
 }
 
 // GetRandomTrucks returns a random set of nTrucks from a given Core
@@ -86,17 +86,17 @@ func getRandomTrucks(numTrucks int, totalTrucks int) ([]string, error) {
 	if numTrucks > totalTrucks {
 		return nil, fmt.Errorf("number of trucks (%d) larger than total trucks. See --scale (%d)", numTrucks, totalTrucks)
 	}
-	
+
 	randomNumbers, err := common.GetRandomSubsetPerm(numTrucks, totalTrucks)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	truckNames := []string{}
 	for _, n := range randomNumbers {
 		truckNames = append(truckNames, fmt.Sprintf("truck_%d", n))
 	}
-	
+
 	return truckNames, nil
 }
 

@@ -12,9 +12,9 @@ import (
 	"strings"
 	"sync"
 	"time"
-	
+
 	"github.com/cnosdb/tsdb-comparisons/pkg/targets"
-	
+
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/stdlib"
 	"github.com/lib/pq"
@@ -88,7 +88,7 @@ func (p *processor) insertTags(db *sql.DB, tagRows [][]string) map[string]int64 
 	if err != nil {
 		panic(err)
 	}
-	
+
 	ret := p.sqlTagsToCacheLine(res, err, tagCols)
 	return ret
 }
@@ -107,7 +107,7 @@ func (p *processor) sqlTagsToCacheLine(res *sql.Rows, err error, tagCols []strin
 		if err != nil {
 			panic(err)
 		}
-		
+
 		var key string
 		if p.opts.UseJSON {
 			decodedTagset := map[string]string{}
@@ -131,7 +131,7 @@ func (p *processor) splitTagsAndMetrics(rows []*insertData, dataCols int) ([][]s
 	dataRows := make([][]interface{}, 0, len(rows))
 	numMetrics := uint64(0)
 	commonTagsLen := len(tableCols[tagsKey])
-	
+
 	for _, data := range rows {
 		// Split the tags into individual common tags and an extra bit leftover
 		// for non-common tags that need to be added separately. For each of
@@ -141,21 +141,21 @@ func (p *processor) splitTagsAndMetrics(rows []*insertData, dataCols int) ([][]s
 		for i := 0; i < commonTagsLen; i++ {
 			tags[i] = strings.Split(tags[i], "=")[1]
 		}
-		
+
 		var json interface{}
 		if len(tags) > commonTagsLen {
 			json = subsystemTagsToJSON(strings.Split(tags[commonTagsLen], ","))
 		}
-		
+
 		metrics := strings.Split(data.fields, ",")
 		numMetrics += uint64(len(metrics) - 1) // 1 field is timestamp
-		
+
 		timeInt, err := strconv.ParseInt(metrics[0], 10, 64)
 		if err != nil {
 			panic(err)
 		}
 		ts := time.Unix(0, timeInt)
-		
+
 		// use nil at 2nd position as placeholder for tagKey
 		r := make([]interface{}, 3, dataCols)
 		r[0], r[1], r[2] = ts, nil, json
@@ -167,19 +167,19 @@ func (p *processor) splitTagsAndMetrics(rows []*insertData, dataCols int) ([][]s
 				r = append(r, nil)
 				continue
 			}
-			
+
 			num, err := strconv.ParseFloat(v, 64)
 			if err != nil {
 				panic(err)
 			}
-			
+
 			r = append(r, num)
 		}
-		
+
 		dataRows = append(dataRows, r)
 		tagRows = append(tagRows, tags[:commonTagsLen])
 	}
-	
+
 	return tagRows, dataRows, numMetrics
 }
 
@@ -189,7 +189,7 @@ func (p *processor) processCSI(hypertable string, rows []*insertData) uint64 {
 		colLen++
 	}
 	tagRows, dataRows, numMetrics := p.splitTagsAndMetrics(rows, colLen)
-	
+
 	// Check if any of these tags has yet to be inserted
 	newTags := make([][]string, 0, len(rows))
 	p._csi.mutex.RLock()
@@ -207,28 +207,28 @@ func (p *processor) processCSI(hypertable string, rows []*insertData) uint64 {
 		}
 		p._csi.mutex.Unlock()
 	}
-	
+
 	p._csi.mutex.RLock()
 	for i := range dataRows {
 		tagKey := tagRows[i][0]
 		dataRows[i][1] = p._csi.m[tagKey]
 	}
 	p._csi.mutex.RUnlock()
-	
+
 	cols := make([]string, 0, colLen)
 	cols = append(cols, "time", "tags_id", "additional_tags")
 	if p.opts.InTableTag {
 		cols = append(cols, tableCols[tagsKey][0])
 	}
 	cols = append(cols, tableCols[hypertable]...)
-	
+
 	if p.opts.ForceTextFormat {
 		tx := MustBegin(p._db)
 		stmt, err := tx.Prepare(pq.CopyIn(hypertable, cols...))
 		if err != nil {
 			panic(err)
 		}
-		
+
 		for _, r := range dataRows {
 			stmt.Exec(r...)
 		}
@@ -236,12 +236,12 @@ func (p *processor) processCSI(hypertable string, rows []*insertData) uint64 {
 		if err != nil {
 			panic(err)
 		}
-		
+
 		err = stmt.Close()
 		if err != nil {
 			panic(err)
 		}
-		
+
 		err = tx.Commit()
 		if err != nil {
 			panic(err)
@@ -250,11 +250,11 @@ func (p *processor) processCSI(hypertable string, rows []*insertData) uint64 {
 		if !p.opts.UseInsert {
 			rows := pgx.CopyFromRows(dataRows)
 			inserted, err := p._pgxConn.CopyFrom(context.Background(), pgx.Identifier{hypertable}, cols, rows)
-			
+
 			if err != nil {
 				panic(err)
 			}
-			
+
 			if inserted != int64(len(dataRows)) {
 				fmt.Fprintf(os.Stderr, "Failed to insert all the data! Expected: %d, Got: %d", len(dataRows), inserted)
 				os.Exit(1)
@@ -263,27 +263,27 @@ func (p *processor) processCSI(hypertable string, rows []*insertData) uint64 {
 			tx := MustBegin(p._db)
 			var stmt *sql.Stmt
 			var err error
-			
+
 			stmtString := genBatchInsertStmt(hypertable, cols, len(dataRows))
 			stmt, err = tx.Prepare(stmtString)
-			
+
 			_, err = stmt.Exec(flatten(dataRows)...)
 			if err != nil {
 				panic(err)
 			}
-			
+
 			err = stmt.Close()
 			if err != nil {
 				panic(err)
 			}
-			
+
 			err = tx.Commit()
 			if err != nil {
 				panic(err)
 			}
 		}
 	}
-	
+
 	return numMetrics
 }
 
@@ -390,7 +390,7 @@ func (p *processor) ProcessBatch(b targets.Batch, doLoad bool) (uint64, uint64) 
 		if doLoad {
 			start := time.Now()
 			metricCnt += p.processCSI(hypertable, rows)
-			
+
 			if p.opts.LogBatches {
 				now := time.Now()
 				took := now.Sub(start)
@@ -425,6 +425,6 @@ func convertValsToBasedOnType(values []string, types []string, quotemark string,
 			sqlVals[i] = val
 		}
 	}
-	
+
 	return sqlVals
 }

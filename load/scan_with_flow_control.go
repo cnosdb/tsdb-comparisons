@@ -2,7 +2,7 @@ package load
 
 import (
 	"reflect"
-	
+
 	"github.com/cnosdb/tsdb-comparisons/pkg/targets"
 )
 
@@ -48,29 +48,29 @@ func scanWithFlowControl(
 ) uint64 {
 	var itemsRead uint64
 	numChannels := len(channels)
-	
+
 	if batchSize < 1 {
 		panic("--batch-size cannot be less than 1")
 	}
-	
+
 	// Batches details
 	// 1. fillingBatches contains batches that are being filled with items from scanner.
 	//    As soon a batch has batchSize items in it, or there is no more items to come, batch moves to unsentBatches.
 	// 2. unsentBatches contains batches ready to be sent to a worker.
 	//    As soon as a worker's chan is available (i.e., not blocking), the batch is placed onto that worker's chan.
-	
+
 	// Current batches (per channel) that are being filled with items from scanner
 	fillingBatches := make([]targets.Batch, numChannels)
 	for i := range fillingBatches {
 		fillingBatches[i] = factory.New()
 	}
-	
+
 	// Batches that are ready to be set when space on a channel opens
 	unsentBatches := make([][]targets.Batch, numChannels)
 	for i := range unsentBatches {
 		unsentBatches[i] = []targets.Batch{}
 	}
-	
+
 	// We use Select via reflection to either select an acknowledged channel so
 	// that we can potentially send another batch, or if none are ready to continue
 	// on scanning. However, when we reach a limit of outstanding (unsent) batches,
@@ -87,31 +87,31 @@ func scanWithFlowControl(
 	cases[numChannels] = reflect.SelectCase{
 		Dir: reflect.SelectDefault,
 	}
-	
+
 	// Keep track of how many batches are outstanding (ocnt),
 	// so we don't go over a limit (olimit), in order to slow down the scanner so it doesn't starve the workers
 	ocnt := 0
 	olimit := numChannels * cap(channels[0].toWorker) * 3
 	for {
-		
+
 		// Check whether incoming items limit reached.
 		// We do not want to process more items than specified.
 		if limit > 0 && itemsRead == limit {
 			break
 		}
-		
+
 		caseLimit := len(cases)
 		if ocnt >= olimit {
 			// We have too many outstanding batches, wait until one finishes (i.e. no default)
 			caseLimit--
 		}
-		
+
 		// Only receive an 'ok' when it's from a channel, default does not return 'ok'
 		chosen, _, ok := reflect.Select(cases[:caseLimit])
 		if ok {
 			unsentBatches[chosen] = ackAndMaybeSend(channels[chosen], &ocnt, unsentBatches[chosen])
 		}
-		
+
 		// Prepare new batch - decode new item and append it to batch
 		item := ds.NextItem()
 		if item.Data == nil {
@@ -120,11 +120,11 @@ func scanWithFlowControl(
 			break
 		}
 		itemsRead++
-		
+
 		// Append new item to batch
 		idx := indexer.GetIndex(item)
 		fillingBatches[idx].Append(item)
-		
+
 		if fillingBatches[idx].Len() >= batchSize {
 			// Batch is full (contains at least batchSize items) - ready to be sent to worker,
 			// or moved to outstanding, in case no workers available atm.
@@ -133,7 +133,7 @@ func scanWithFlowControl(
 			fillingBatches[idx] = factory.New()
 		}
 	}
-	
+
 	// Finished reading input - no more items to come
 	// Make sure last batch goes out - it may be smaller than batchSize requested - there is not more items
 	for idx, b := range fillingBatches {
@@ -142,7 +142,7 @@ func scanWithFlowControl(
 			unsentBatches[idx] = sendOrQueueBatch(channels[idx], &ocnt, fillingBatches[idx], unsentBatches[idx])
 		}
 	}
-	
+
 	// Wait until all the outstanding batches get acknowledged,
 	// so we don't prematurely close the acknowledge channels
 	for {
@@ -150,13 +150,13 @@ func scanWithFlowControl(
 			// No outstanding batches any more
 			break
 		}
-		
+
 		// Try to send batches to workers
 		chosen, _, ok := reflect.Select(cases[:len(cases)-1])
 		if ok {
 			unsentBatches[chosen] = ackAndMaybeSend(channels[chosen], &ocnt, unsentBatches[chosen])
 		}
 	}
-	
+
 	return itemsRead
 }

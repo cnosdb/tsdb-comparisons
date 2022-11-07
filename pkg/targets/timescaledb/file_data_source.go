@@ -3,7 +3,7 @@ package timescaledb
 import (
 	"bufio"
 	"strings"
-	
+
 	"github.com/cnosdb/tsdb-comparisons/load"
 	"github.com/cnosdb/tsdb-comparisons/pkg/data"
 	"github.com/cnosdb/tsdb-comparisons/pkg/data/usecases/common"
@@ -54,7 +54,7 @@ func (d *fileDataSource) Headers() *common.GeneratedDataHeaders {
 		}
 		i++
 	}
-	
+
 	tagsarr := strings.Split(tags, ",")
 	if tagsarr[0] != tagsKey {
 		fatal("input header in wrong format. got '%s', expected 'tags'", tags[0])
@@ -88,7 +88,7 @@ func (d *fileDataSource) NextItem() data.LoadedPoint {
 		fatal("scan error: %v", d.scanner.Err())
 		return data.LoadedPoint{}
 	}
-	
+
 	// The first line is a CSV line of tags with the first element being "tags"
 	parts := strings.SplitN(d.scanner.Text(), ",", 2) // prefix & then rest of line
 	prefix := parts[0]
@@ -97,7 +97,7 @@ func (d *fileDataSource) NextItem() data.LoadedPoint {
 		return data.LoadedPoint{}
 	}
 	newPoint.tags = parts[1]
-	
+
 	// Scan again to get the data line
 	ok = d.scanner.Scan()
 	if !ok {
@@ -107,7 +107,7 @@ func (d *fileDataSource) NextItem() data.LoadedPoint {
 	parts = strings.SplitN(d.scanner.Text(), ",", 2) // prefix & then rest of line
 	prefix = parts[0]
 	newPoint.fields = parts[1]
-	
+
 	return data.NewLoadedPoint(&point{
 		hypertable: prefix,
 		row:        newPoint,

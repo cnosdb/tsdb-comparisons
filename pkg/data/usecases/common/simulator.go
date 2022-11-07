@@ -35,7 +35,7 @@ func (sc *BaseSimulatorConfig) NewSimulator(interval time.Duration, limit uint64
 	for i := 0; i < len(generators); i++ {
 		generators[i] = sc.GeneratorConstructor(i, sc.Start)
 	}
-	
+
 	epochs := calculateEpochs(sc.End.Sub(sc.Start), interval)
 	maxPoints := epochs * sc.GeneratorScale * uint64(len(generators[0].Measurements()))
 	if limit > 0 && limit < maxPoints {
@@ -45,10 +45,10 @@ func (sc *BaseSimulatorConfig) NewSimulator(interval time.Duration, limit uint64
 	sim := &BaseSimulator{
 		madePoints: 0,
 		maxPoints:  maxPoints,
-		
+
 		generatorIndex: 0,
 		generators:     generators,
-		
+
 		epoch:           0,
 		epochs:          epochs,
 		epochGenerators: sc.InitGeneratorScale,
@@ -56,10 +56,10 @@ func (sc *BaseSimulatorConfig) NewSimulator(interval time.Duration, limit uint64
 		timestampStart:  sc.Start,
 		timestampEnd:    sc.End,
 		interval:        interval,
-		
+
 		simulatedMeasurementIndex: 0,
 	}
-	
+
 	return sim
 }
 
@@ -83,19 +83,19 @@ type Simulator interface {
 type BaseSimulator struct {
 	madePoints uint64
 	maxPoints  uint64
-	
+
 	generatorIndex uint64
 	generators     []Generator
-	
+
 	epoch           uint64
 	epochs          uint64
 	epochGenerators uint64
 	initGenerators  uint64
-	
+
 	timestampStart time.Time
 	timestampEnd   time.Time
 	interval       time.Duration
-	
+
 	simulatedMeasurementIndex int
 }
 
@@ -110,27 +110,27 @@ func (s *BaseSimulator) Next(p *data.Point) bool {
 		s.generatorIndex = 0
 		s.simulatedMeasurementIndex++
 	}
-	
+
 	if s.simulatedMeasurementIndex == len(s.generators[0].Measurements()) {
 		s.simulatedMeasurementIndex = 0
-		
+
 		for i := 0; i < len(s.generators); i++ {
 			s.generators[i].TickAll(s.interval)
 		}
-		
+
 		s.adjustNumHostsForEpoch()
 	}
-	
+
 	generator := s.generators[s.generatorIndex]
-	
+
 	// Populate the Generator tags.
 	for _, tag := range generator.Tags() {
 		p.AppendTag(tag.Key, tag.Value)
 	}
-	
+
 	// Populate measurement-specific tags and fields:
 	generator.Measurements()[s.simulatedMeasurementIndex].ToPoint(p)
-	
+
 	ret := s.generatorIndex < s.epochGenerators
 	s.madePoints++
 	s.generatorIndex++
@@ -142,7 +142,7 @@ func (s *BaseSimulator) Fields() map[string][]string {
 	if len(s.generators) <= 0 {
 		panic("cannot get fields because no Generators added")
 	}
-	
+
 	toReturn := make(map[string][]string, len(s.generators))
 	for _, sm := range s.generators[0].Measurements() {
 		point := data.NewPoint()
@@ -154,7 +154,7 @@ func (s *BaseSimulator) Fields() map[string][]string {
 		}
 		toReturn[string(point.MeasurementName())] = fieldKeysAsStr
 	}
-	
+
 	return toReturn
 }
 
@@ -163,13 +163,13 @@ func (s *BaseSimulator) TagKeys() []string {
 	if len(s.generators) <= 0 {
 		panic("cannot get tag keys because no Generators added")
 	}
-	
+
 	tags := s.generators[0].Tags()
 	tagKeys := make([]string, len(tags))
 	for i, tag := range tags {
 		tagKeys[i] = string(tag.Key)
 	}
-	
+
 	return tagKeys
 }
 
@@ -178,13 +178,13 @@ func (s *BaseSimulator) TagTypes() []string {
 	if len(s.generators) <= 0 {
 		panic("cannot get tag types because no Generators added")
 	}
-	
+
 	tags := s.generators[0].Tags()
 	types := make([]string, len(tags))
 	for i, tag := range tags {
 		types[i] = reflect.TypeOf(tag.Value).String()
 	}
-	
+
 	return types
 }
 

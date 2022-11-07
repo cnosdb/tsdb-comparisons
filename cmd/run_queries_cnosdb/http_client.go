@@ -9,7 +9,7 @@ import (
 	"os"
 	"sync"
 	"time"
-	
+
 	"github.com/cnosdb/tsdb-comparisons/pkg/query"
 )
 
@@ -68,13 +68,13 @@ func (w *HTTPClient) Do(q *query.HTTP, opts *HTTPClientDoOptions) (lag float64, 
 		s := fmt.Sprintf("&chunked=true&chunk_size=%d", opts.chunkSize)
 		w.uri = append(w.uri, []byte(s)...)
 	}
-	
+
 	// populate a request with data from the Query:
 	req, err := http.NewRequest(string(q.Method), string(w.uri), nil)
 	if err != nil {
 		panic(err)
 	}
-	
+
 	// Perform the request while tracking latency:
 	start := time.Now()
 	resp, err := w.client.Do(req)
@@ -85,16 +85,16 @@ func (w *HTTPClient) Do(q *query.HTTP, opts *HTTPClientDoOptions) (lag float64, 
 	if resp.StatusCode != http.StatusOK {
 		panic("http request did not return status 200 OK")
 	}
-	
+
 	var body []byte
 	body, err = ioutil.ReadAll(resp.Body)
-	
+
 	if err != nil {
 		panic(err)
 	}
-	
+
 	lag = float64(time.Since(start).Nanoseconds()) / 1e6 // milliseconds
-	
+
 	if opts != nil {
 		// Print debug messages, if applicable:
 		switch opts.Debug {
@@ -111,12 +111,12 @@ func (w *HTTPClient) Do(q *query.HTTP, opts *HTTPClientDoOptions) (lag float64, 
 			fmt.Fprintf(os.Stderr, "debug:   response: %s\n", string(body))
 		default:
 		}
-		
+
 		// Pretty print JSON responses, if applicable:
 		if opts.PrettyPrintResponses {
 			// Assumes the response is JSON! This holds for Influx
 			// and Elastic.
-			
+
 			prefix := fmt.Sprintf("ID %d: ", q.GetID())
 			var v interface{}
 			var line []byte
@@ -131,6 +131,6 @@ func (w *HTTPClient) Do(q *query.HTTP, opts *HTTPClientDoOptions) (lag float64, 
 			fmt.Println(string(line) + "\n")
 		}
 	}
-	
+
 	return lag, err
 }

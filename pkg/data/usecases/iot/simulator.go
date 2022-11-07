@@ -19,15 +19,15 @@ type SimulatorConfig common.BaseSimulatorConfig
 // config over the specified interval and points limit.
 func (sc *SimulatorConfig) NewSimulator(interval time.Duration, limit uint64) common.Simulator {
 	s := (*common.BaseSimulatorConfig)(sc).NewSimulator(interval, limit)
-	
+
 	maxFieldCount := 0
-	
+
 	for _, fields := range s.Fields() {
 		if len(fields) > maxFieldCount {
 			maxFieldCount = len(fields)
 		}
 	}
-	
+
 	return &Simulator{
 		base:            s,
 		batchSize:       defaultBatchSize,
@@ -46,7 +46,7 @@ type Simulator struct {
 	configGenerator func(outOfOrderBatchCount, outOfOrderEntryCount, fieldCount, tagCount int) *batchConfig
 	// maxFieldCount is the maximum amount of fields an entry can have
 	maxFieldCount int
-	
+
 	// Mutable state.
 	currBatch         []*data.Point
 	outOfOrderBatches [][]*data.Point
@@ -83,13 +83,13 @@ func (s *Simulator) Next(p *data.Point) bool {
 	if s.batchSize == 0 {
 		return s.base.Next(p)
 	}
-	
+
 	if len(s.currBatch) > 0 || s.simulateNextBatch() {
 		p.Copy(s.currBatch[0])
 		s.currBatch = s.currBatch[1:]
 		return true
 	}
-	
+
 	return false
 }
 
@@ -117,21 +117,21 @@ func (s *Simulator) batchPending() []*data.Point {
 		s.outOfOrderBatches = s.outOfOrderBatches[1:]
 		return batch
 	}
-	
+
 	pendingEntries := len(s.outOfOrderEntries)
-	
+
 	if pendingEntries > 0 {
 		if pendingEntries > int(s.batchSize) {
 			batch = s.outOfOrderEntries[:s.batchSize]
 			s.outOfOrderEntries = s.outOfOrderEntries[s.batchSize:]
 			return batch
 		}
-		
+
 		batch = s.outOfOrderEntries
 		s.outOfOrderEntries = s.outOfOrderEntries[:0]
 		return batch
 	}
-	
+
 	return batch
 }
 
@@ -142,12 +142,12 @@ func (s *Simulator) simulateNextBatch() bool {
 			s.currBatch = s.batchPending()
 			return true
 		}
-		
+
 		return false
 	}
-	
+
 	bc := s.configGenerator(len(s.outOfOrderBatches), len(s.outOfOrderEntries), s.maxFieldCount, len(s.TagKeys()))
-	
+
 	if bc.InsertPrevious {
 		if len(s.outOfOrderBatches) == 0 {
 			panic("trying to insert an out of order batch when there are no out of order batches")
@@ -156,25 +156,25 @@ func (s *Simulator) simulateNextBatch() bool {
 		s.outOfOrderBatches = s.outOfOrderBatches[1:]
 		return true
 	}
-	
+
 	if bc.Missing {
 		s.flushBatch()
 		return s.simulateNextBatch()
 	}
-	
+
 	if bc.OutOfOrder {
 		s.generateOutOfOrderBatch(bc)
 		return s.simulateNextBatch()
 	}
-	
+
 	s.currBatch = s.generateBatch(bc)
-	
+
 	// Edge case where we hit the finish of the base simulator but there are
 	// still pending out of order items.
 	if len(s.currBatch) == 0 {
 		return s.simulateNextBatch()
 	}
-	
+
 	return len(s.currBatch) > 0
 }
 
@@ -183,20 +183,20 @@ func (s *Simulator) simulateNextBatch() bool {
 func (s *Simulator) generateBatch(bc *batchConfig) []*data.Point {
 	batch := make([]*data.Point, s.batchSize)
 	s.offset = 0
-	
+
 	for i := range batch {
 		if s.base.Finished() {
 			batch = batch[:i]
 			break
 		}
-		
+
 		entry, valid := s.getNextEntry(i, bc)
-		
+
 		if !valid {
 			batch = batch[:i]
 			break
 		}
-		
+
 		if index, ok := bc.ZeroFields[i]; ok {
 			keys := entry.FieldKeys()
 			if index >= len(keys) {
@@ -204,7 +204,7 @@ func (s *Simulator) generateBatch(bc *batchConfig) []*data.Point {
 			}
 			entry.ClearFieldValue(keys[index])
 		}
-		
+
 		if index, ok := bc.ZeroTags[i]; ok {
 			keys := entry.TagKeys()
 			if len(keys) < index {
@@ -212,10 +212,10 @@ func (s *Simulator) generateBatch(bc *batchConfig) []*data.Point {
 			}
 			entry.ClearTagValue(keys[index])
 		}
-		
+
 		batch[i] = entry
 	}
-	
+
 	return batch
 }
 
@@ -227,7 +227,7 @@ func (s *Simulator) generateBatch(bc *batchConfig) []*data.Point {
 func (s *Simulator) getNextEntry(index int, bc *batchConfig) (*data.Point, bool) {
 	var result, entry *data.Point
 	valid := true
-	
+
 	for result == nil {
 		if bc.InsertPreviousEntry[index+s.offset] {
 			if len(s.outOfOrderEntries) == 0 {
@@ -237,33 +237,33 @@ func (s *Simulator) getNextEntry(index int, bc *batchConfig) (*data.Point, bool)
 			s.outOfOrderEntries = s.outOfOrderEntries[1:]
 		} else {
 			entry = data.NewPoint()
-			
+
 			if valid = s.base.Next(entry); !valid {
 				break
 			}
 		}
-		
+
 		if bc.MissingEntries[index+s.offset] {
 			s.offset++
 			continue
 		}
-		
+
 		if bc.OutOfOrderEntries[index+s.offset] {
 			s.outOfOrderEntries = append(s.outOfOrderEntries, entry)
 			s.offset++
 			continue
 		}
-		
+
 		result = entry
 	}
-	
+
 	return result, valid
 }
 
 // generateOutOfOrderBatch creates a batch and sends it straight to out-of-order batches.
 func (s *Simulator) generateOutOfOrderBatch(bc *batchConfig) {
 	batch := s.generateBatch(bc)
-	
+
 	if len(batch) > 0 {
 		s.outOfOrderBatches = append(s.outOfOrderBatches, batch)
 	}

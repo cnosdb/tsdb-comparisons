@@ -41,7 +41,7 @@ func (m *SubsystemMeasurement) Tick(d time.Duration) {
 func (m *SubsystemMeasurement) ToPoint(p *data.Point, measurementName []byte, labels []LabeledDistributionMaker) {
 	p.SetMeasurementName(measurementName)
 	p.SetTimestamp(&m.Timestamp)
-	
+
 	for i, d := range m.Distributions {
 		p.AppendField(labels[i].Label, d.Get())
 	}
@@ -54,7 +54,7 @@ func (m *SubsystemMeasurement) ToPoint(p *data.Point, measurementName []byte, la
 func (m *SubsystemMeasurement) ToPointAllInt64(p *data.Point, measurementName []byte, labels []LabeledDistributionMaker) {
 	p.SetMeasurementName(measurementName)
 	p.SetTimestamp(&m.Timestamp)
-	
+
 	for i, d := range m.Distributions {
 		p.AppendField(labels[i].Label, int64(d.Get()))
 	}

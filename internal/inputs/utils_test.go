@@ -9,7 +9,7 @@ import (
 func TestIsIn(t *testing.T) {
 	arr := []string{"foo", "bar", "baz"}
 	arr2 := []string{"oof", "foo ", "nada", "123"}
-	
+
 	// Test positive cases
 	for _, s := range arr {
 		if !utils.IsIn(s, arr) {
@@ -21,7 +21,7 @@ func TestIsIn(t *testing.T) {
 			t.Errorf("%s not found in %v incorrectly", s, arr)
 		}
 	}
-	
+
 	// Test negative cases
 	for _, s := range arr {
 		if utils.IsIn(s, arr2) {
@@ -33,7 +33,7 @@ func TestIsIn(t *testing.T) {
 			t.Errorf("%s found in %v incorrectly", s, arr)
 		}
 	}
-	
+
 }
 
 const (
@@ -50,7 +50,7 @@ func TestParseUTCTime(t *testing.T) {
 	} else if parsedTime != correctTime {
 		t.Errorf("did not get correct time back: got %v want %v", parsedTime, correctTime)
 	}
-	
+
 	_, err = utils.ParseUTCTime(incorrectTimeStr)
 	if err == nil {
 		t.Errorf("unexpected lack of error")

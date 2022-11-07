@@ -27,20 +27,20 @@ func TestDataGeneratorConfigValidate(t *testing.T) {
 		InterleavedGroupID:   0,
 		InterleavedNumGroups: 1,
 	}
-	
+
 	// Test base validation
 	err := c.Validate()
 	if err != nil {
 		t.Errorf("unexpected error for correct config: %v", err)
 	}
-	
+
 	c.Format = "bad format"
 	err = c.Validate()
 	if err == nil {
 		t.Errorf("unexpected lack of error for bad format")
 	}
 	c.Format = constants.FormatTimescaleDB
-	
+
 	// Test InitialScale validation
 	c.InitialScale = 0
 	err = c.Validate()
@@ -50,7 +50,7 @@ func TestDataGeneratorConfigValidate(t *testing.T) {
 	if c.InitialScale != c.Scale {
 		t.Errorf("InitialScale not set correctly for 0: got %d want %d", c.InitialScale, c.Scale)
 	}
-	
+
 	c.InitialScale = 5
 	err = c.Validate()
 	if err != nil {
@@ -59,7 +59,7 @@ func TestDataGeneratorConfigValidate(t *testing.T) {
 	if c.InitialScale != 5 {
 		t.Errorf("InitialScale not set correctly for 0: got %d want %d", c.InitialScale, 5)
 	}
-	
+
 	// Test LogInterval validation
 	c.LogInterval = 0
 	err = c.Validate()
@@ -69,7 +69,7 @@ func TestDataGeneratorConfigValidate(t *testing.T) {
 		t.Errorf("incorrect error for 0 log interval: got\n%s\nwant\n%s", got, errLogIntervalZero)
 	}
 	c.LogInterval = time.Second
-	
+
 	// Test groups validation
 	c.InterleavedNumGroups = 0
 	err = c.Validate()
@@ -79,7 +79,7 @@ func TestDataGeneratorConfigValidate(t *testing.T) {
 		t.Errorf("incorrect error for 0 groups: got\n%s\nwant\n%s", got, errTotalGroupsZero)
 	}
 	c.InterleavedNumGroups = 1
-	
+
 	c.InterleavedGroupID = 2
 	err = c.Validate()
 	if err == nil {

@@ -2,9 +2,9 @@ package config
 
 import (
 	"fmt"
-	"github.com/spf13/pflag"
 	"github.com/cnosdb/tsdb-comparisons/internal/utils"
 	"github.com/cnosdb/tsdb-comparisons/pkg/data/usecases/common"
+	"github.com/spf13/pflag"
 )
 
 const ErrEmptyQueryType = "query type cannot be empty"
@@ -19,12 +19,12 @@ type QueryGeneratorConfig struct {
 	QueryType            string `mapstructure:"query-type"`
 	InterleavedGroupID   uint   `mapstructure:"interleaved-generation-group-id"`
 	InterleavedNumGroups uint   `mapstructure:"interleaved-generation-groups"`
-	
+
 	// TODO - I think this needs some rethinking, but a simple, elegant solution escapes me right now
 	TimescaleUseJSON       bool `mapstructure:"timescale-use-json"`
 	TimescaleUseTags       bool `mapstructure:"timescale-use-tags"`
 	TimescaleUseTimeBucket bool `mapstructure:"timescale-use-time-bucket"`
-	
+
 	DbName string `mapstructure:"db-name"`
 }
 
@@ -34,11 +34,11 @@ func (c *QueryGeneratorConfig) Validate() error {
 	if err != nil {
 		return err
 	}
-	
+
 	if c.QueryType == "" {
 		return fmt.Errorf(ErrEmptyQueryType)
 	}
-	
+
 	err = utils.ValidateGroups(c.InterleavedGroupID, c.InterleavedNumGroups)
 	return err
 }
@@ -47,15 +47,15 @@ func (c *QueryGeneratorConfig) AddToFlagSet(fs *pflag.FlagSet) {
 	c.BaseConfig.AddToFlagSet(fs)
 	fs.Uint64("queries", 1000, "Number of queries to generate.")
 	fs.String("query-type", "", "Query type. (Choices are in the use case matrix.)")
-	
+
 	fs.Uint("interleaved-generation-group-id", 0,
 		"Group (0-indexed) to perform round-robin serialization within. Use this to scale up data generation to multiple processes.")
 	fs.Uint("interleaved-generation-groups", 1,
 		"The number of round-robin serialization groups. Use this to scale up data generation to multiple processes.")
-	
+
 	fs.Bool("timescale-use-json", false, "TimescaleDB only: Use separate JSON tags table when querying")
 	fs.Bool("timescale-use-tags", true, "TimescaleDB only: Use separate tags table when querying")
 	fs.Bool("timescale-use-time-bucket", true, "TimescaleDB only: Use time bucket. Set to false to test on native PostgreSQL")
-	
+
 	fs.String("db-name", "benchmark", "Specify database name. Timestream requires it in order to generate the queries")
 }

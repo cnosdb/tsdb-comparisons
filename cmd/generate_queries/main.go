@@ -41,7 +41,7 @@ func init() {
 	oldUsage := pflag.Usage
 	pflag.Usage = func() {
 		oldUsage()
-		
+
 		fmt.Fprintf(os.Stderr, "\n")
 		fmt.Fprintf(os.Stderr, "The use case matrix of choices is:\n")
 		for uc, queryTypes := range useCaseMatrix {
@@ -50,21 +50,21 @@ func init() {
 			}
 		}
 	}
-	
+
 	conf.AddToFlagSet(pflag.CommandLine)
-	
+
 	pflag.Parse()
-	
+
 	err := internalUtils.SetupConfigFile()
-	
+
 	if err != nil {
 		panic(fmt.Errorf("fatal error config file: %s", err))
 	}
-	
+
 	if err := viper.Unmarshal(&conf.BaseConfig); err != nil {
 		panic(fmt.Errorf("unable to decode base config: %s", err))
 	}
-	
+
 	if err := viper.Unmarshal(&conf); err != nil {
 		panic(fmt.Errorf("unable to decode config: %s", err))
 	}

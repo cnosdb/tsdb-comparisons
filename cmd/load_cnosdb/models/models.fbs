@@ -1,0 +1,38 @@
+namespace models;
+
+table PingBody {
+    payload: [ubyte];
+}
+
+enum FieldType: int {
+    Unknown = -1,
+    Float,
+    Integer,
+    Unsigned,
+    Boolean,
+    String,
+}
+
+table Tag {
+    key: [ubyte];
+    value: [ubyte];
+}
+
+table Field {
+    name: [ubyte];
+    type: FieldType;
+    value: [ubyte];
+}
+
+table Point {
+    db: [ubyte];
+    tab: [ubyte];
+    tags: [Tag];
+    fields: [Field];
+    timestamp: int64;
+}
+
+table Points {
+    db: [ubyte];
+    points: [Point];
+}

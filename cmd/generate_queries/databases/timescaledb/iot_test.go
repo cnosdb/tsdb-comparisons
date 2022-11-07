@@ -5,7 +5,7 @@ import (
 	"math/rand"
 	"testing"
 	"time"
-	
+
 	"github.com/cnosdb/tsdb-comparisons/cmd/generate_queries/uses/iot"
 	"github.com/cnosdb/tsdb-comparisons/pkg/query"
 )
@@ -43,7 +43,7 @@ func TestLastLocByTruck(t *testing.T) {
 		{
 			desc:  "one truck",
 			input: 1,
-			
+
 			expectedHumanLabel: "TimescaleDB last location by specific truck",
 			expectedHumanDesc:  "TimescaleDB last location by specific truck: random    1 trucks",
 			expectedHypertable: "readings",
@@ -59,7 +59,7 @@ func TestLastLocByTruck(t *testing.T) {
 			desc:    "one truck use json",
 			input:   1,
 			useJSON: true,
-			
+
 			expectedHumanLabel: "TimescaleDB last location by specific truck",
 			expectedHumanDesc:  "TimescaleDB last location by specific truck: random    1 trucks",
 			expectedHypertable: "readings",
@@ -74,7 +74,7 @@ func TestLastLocByTruck(t *testing.T) {
 		{
 			desc:  "three truck",
 			input: 3,
-			
+
 			expectedHumanLabel: "TimescaleDB last location by specific truck",
 			expectedHumanDesc:  "TimescaleDB last location by specific truck: random    3 trucks",
 			expectedHypertable: "readings",
@@ -87,13 +87,13 @@ func TestLastLocByTruck(t *testing.T) {
 		WHERE t.name IN ('truck_3','truck_5','truck_9')`,
 		},
 	}
-	
+
 	testFunc := func(i *IoT, c testCase) query.Query {
 		q := i.GenerateEmptyQuery()
 		i.LastLocByTruck(q, c.input)
 		return q
 	}
-	
+
 	runTestCases(t, testFunc, time.Now(), time.Now(), cases)
 }
 
@@ -101,7 +101,7 @@ func TestLastLocPerTruck(t *testing.T) {
 	cases := []testCase{
 		{
 			desc: "default to using tags",
-			
+
 			expectedHumanLabel: "TimescaleDB last location per truck",
 			expectedHumanDesc:  "TimescaleDB last location per truck",
 			expectedHypertable: iot.ReadingsTableName,
@@ -114,10 +114,10 @@ func TestLastLocPerTruck(t *testing.T) {
 		WHERE t.name IS NOT NULL
 		AND t.fleet = 'South'`,
 		},
-		
+
 		{
 			desc: "use JSON",
-			
+
 			useJSON:            true,
 			expectedHumanLabel: "TimescaleDB last location per truck",
 			expectedHumanDesc:  "TimescaleDB last location per truck",
@@ -132,7 +132,7 @@ func TestLastLocPerTruck(t *testing.T) {
 		AND t.tagset->>'fleet' = 'South'`,
 		},
 	}
-	
+
 	for _, c := range cases {
 		rand.Seed(123)
 		b := BaseGenerator{
@@ -142,12 +142,12 @@ func TestLastLocPerTruck(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Error while creating iot generator")
 		}
-		
+
 		g := ig.(*IoT)
-		
+
 		q := g.GenerateEmptyQuery()
 		g.LastLocPerTruck(q)
-		
+
 		verifyQuery(t, q, c.expectedHumanLabel, c.expectedHumanDesc, c.expectedHypertable, c.expectedSQLQuery)
 	}
 }
@@ -156,7 +156,7 @@ func TestTrucksWithLowFuel(t *testing.T) {
 	cases := []testCase{
 		{
 			desc: "default to using tags",
-			
+
 			expectedHumanLabel: "TimescaleDB trucks with low fuel",
 			expectedHumanDesc:  "TimescaleDB trucks with low fuel: under 10 percent",
 			expectedHypertable: iot.DiagnosticsTableName,
@@ -170,10 +170,10 @@ func TestTrucksWithLowFuel(t *testing.T) {
 		AND d.fuel_state < 0.1 
 		AND t.fleet = 'South'`,
 		},
-		
+
 		{
 			desc: "use JSON",
-			
+
 			useJSON:            true,
 			expectedHumanLabel: "TimescaleDB trucks with low fuel",
 			expectedHumanDesc:  "TimescaleDB trucks with low fuel: under 10 percent",
@@ -189,7 +189,7 @@ func TestTrucksWithLowFuel(t *testing.T) {
 		AND t.tagset->>'fleet' = 'South'`,
 		},
 	}
-	
+
 	for _, c := range cases {
 		rand.Seed(123)
 		b := BaseGenerator{
@@ -199,12 +199,12 @@ func TestTrucksWithLowFuel(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Error while creating iot generator")
 		}
-		
+
 		g := ig.(*IoT)
-		
+
 		q := g.GenerateEmptyQuery()
 		g.TrucksWithLowFuel(q)
-		
+
 		verifyQuery(t, q, c.expectedHumanLabel, c.expectedHumanDesc, c.expectedHypertable, c.expectedSQLQuery)
 	}
 }
@@ -213,7 +213,7 @@ func TestTrucksWithHighLoad(t *testing.T) {
 	cases := []testCase{
 		{
 			desc: "default to using tags",
-			
+
 			expectedHumanLabel: "TimescaleDB trucks with high load",
 			expectedHumanDesc:  "TimescaleDB trucks with high load: over 90 percent",
 			expectedHypertable: iot.DiagnosticsTableName,
@@ -227,10 +227,10 @@ func TestTrucksWithHighLoad(t *testing.T) {
 		AND d.current_load/t.load_capacity > 0.9 
 		AND t.fleet = 'South'`,
 		},
-		
+
 		{
 			desc: "use JSON",
-			
+
 			useJSON:            true,
 			expectedHumanLabel: "TimescaleDB trucks with high load",
 			expectedHumanDesc:  "TimescaleDB trucks with high load: over 90 percent",
@@ -246,7 +246,7 @@ func TestTrucksWithHighLoad(t *testing.T) {
 		AND t.tagset->>'fleet' = 'South'`,
 		},
 	}
-	
+
 	for _, c := range cases {
 		rand.Seed(123)
 		b := BaseGenerator{
@@ -256,12 +256,12 @@ func TestTrucksWithHighLoad(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Error while creating iot generator")
 		}
-		
+
 		g := ig.(*IoT)
-		
+
 		q := g.GenerateEmptyQuery()
 		g.TrucksWithHighLoad(q)
-		
+
 		verifyQuery(t, q, c.expectedHumanLabel, c.expectedHumanDesc, c.expectedHypertable, c.expectedSQLQuery)
 	}
 }
@@ -270,7 +270,7 @@ func TestStationaryTrucks(t *testing.T) {
 	cases := []testCase{
 		{
 			desc: "default to using tags",
-			
+
 			expectedHumanLabel: "TimescaleDB stationary trucks",
 			expectedHumanDesc:  "TimescaleDB stationary trucks: with low avg velocity in last 10 minutes",
 			expectedHypertable: iot.ReadingsTableName,
@@ -283,10 +283,10 @@ func TestStationaryTrucks(t *testing.T) {
 		GROUP BY 1, 2 
 		HAVING avg(r.velocity) < 1`,
 		},
-		
+
 		{
 			desc: "use JSON",
-			
+
 			useJSON:            true,
 			expectedHumanLabel: "TimescaleDB stationary trucks",
 			expectedHumanDesc:  "TimescaleDB stationary trucks: with low avg velocity in last 10 minutes",
@@ -301,17 +301,17 @@ func TestStationaryTrucks(t *testing.T) {
 		HAVING avg(r.velocity) < 1`,
 		},
 	}
-	
+
 	for _, c := range cases {
 		b := &BaseGenerator{
 			UseJSON: c.useJSON,
 		}
 		g := NewIoT(time.Unix(0, 0), time.Unix(0, 0).Add(time.Hour), 10, b)
-		
+
 		q := g.GenerateEmptyQuery()
 		rand.Seed(123)
 		g.StationaryTrucks(q)
-		
+
 		verifyQuery(t, q, c.expectedHumanLabel, c.expectedHumanDesc, c.expectedHypertable, c.expectedSQLQuery)
 	}
 }
@@ -320,7 +320,7 @@ func TestTrucksWithLongDrivingSessions(t *testing.T) {
 	cases := []testCase{
 		{
 			desc: "default to using tags",
-			
+
 			expectedHumanLabel: "TimescaleDB trucks with longer driving sessions",
 			expectedHumanDesc:  "TimescaleDB trucks with longer driving sessions: stopped less than 20 mins in 4 hour period",
 			expectedHypertable: iot.ReadingsTableName,
@@ -338,10 +338,10 @@ func TestTrucksWithLongDrivingSessions(t *testing.T) {
 		GROUP BY name, driver 
 		HAVING count(r.ten_minutes) > 22`,
 		},
-		
+
 		{
 			desc: "use JSON",
-			
+
 			useJSON:            true,
 			expectedHumanLabel: "TimescaleDB trucks with longer driving sessions",
 			expectedHumanDesc:  "TimescaleDB trucks with longer driving sessions: stopped less than 20 mins in 4 hour period",
@@ -361,7 +361,7 @@ func TestTrucksWithLongDrivingSessions(t *testing.T) {
 		HAVING count(r.ten_minutes) > 22`,
 		},
 	}
-	
+
 	for _, c := range cases {
 		b := BaseGenerator{
 			UseJSON: c.useJSON,
@@ -370,13 +370,13 @@ func TestTrucksWithLongDrivingSessions(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Error while creating iot generator")
 		}
-		
+
 		g := ig.(*IoT)
-		
+
 		q := g.GenerateEmptyQuery()
 		rand.Seed(123)
 		g.TrucksWithLongDrivingSessions(q)
-		
+
 		verifyQuery(t, q, c.expectedHumanLabel, c.expectedHumanDesc, c.expectedHypertable, c.expectedSQLQuery)
 	}
 }
@@ -385,7 +385,7 @@ func TestTrucksWithLongDailySessions(t *testing.T) {
 	cases := []testCase{
 		{
 			desc: "default to using tags",
-			
+
 			expectedHumanLabel: "TimescaleDB trucks with longer daily sessions",
 			expectedHumanDesc:  "TimescaleDB trucks with longer daily sessions: drove more than 10 hours in the last 24 hours",
 			expectedHypertable: iot.ReadingsTableName,
@@ -403,10 +403,10 @@ func TestTrucksWithLongDailySessions(t *testing.T) {
 		GROUP BY name, driver 
 		HAVING count(r.ten_minutes) > 60`,
 		},
-		
+
 		{
 			desc: "use JSON",
-			
+
 			useJSON:            true,
 			expectedHumanLabel: "TimescaleDB trucks with longer daily sessions",
 			expectedHumanDesc:  "TimescaleDB trucks with longer daily sessions: drove more than 10 hours in the last 24 hours",
@@ -426,7 +426,7 @@ func TestTrucksWithLongDailySessions(t *testing.T) {
 		HAVING count(r.ten_minutes) > 60`,
 		},
 	}
-	
+
 	for _, c := range cases {
 		b := BaseGenerator{
 			UseJSON: c.useJSON,
@@ -435,13 +435,13 @@ func TestTrucksWithLongDailySessions(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Error while creating iot generator")
 		}
-		
+
 		g := ig.(*IoT)
-		
+
 		q := g.GenerateEmptyQuery()
 		rand.Seed(123)
 		g.TrucksWithLongDailySessions(q)
-		
+
 		verifyQuery(t, q, c.expectedHumanLabel, c.expectedHumanDesc, c.expectedHypertable, c.expectedSQLQuery)
 	}
 }
@@ -450,7 +450,7 @@ func TestAvgVsProjectedFuelConsumption(t *testing.T) {
 	cases := []testCase{
 		{
 			desc: "default to using tags",
-			
+
 			expectedHumanLabel: "TimescaleDB average vs projected fuel consumption per fleet",
 			expectedHumanDesc:  "TimescaleDB average vs projected fuel consumption per fleet",
 			expectedHypertable: iot.ReadingsTableName,
@@ -463,10 +463,10 @@ func TestAvgVsProjectedFuelConsumption(t *testing.T) {
 		AND t.name IS NOT NULL
 		GROUP BY fleet`,
 		},
-		
+
 		{
 			desc: "use JSON",
-			
+
 			useJSON:            true,
 			expectedHumanLabel: "TimescaleDB average vs projected fuel consumption per fleet",
 			expectedHumanDesc:  "TimescaleDB average vs projected fuel consumption per fleet",
@@ -481,7 +481,7 @@ func TestAvgVsProjectedFuelConsumption(t *testing.T) {
 		GROUP BY fleet`,
 		},
 	}
-	
+
 	for _, c := range cases {
 		b := BaseGenerator{
 			UseJSON: c.useJSON,
@@ -490,13 +490,13 @@ func TestAvgVsProjectedFuelConsumption(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Error while creating iot generator")
 		}
-		
+
 		g := ig.(*IoT)
-		
+
 		q := g.GenerateEmptyQuery()
 		rand.Seed(123)
 		g.AvgVsProjectedFuelConsumption(q)
-		
+
 		verifyQuery(t, q, c.expectedHumanLabel, c.expectedHumanDesc, c.expectedHypertable, c.expectedSQLQuery)
 	}
 }
@@ -505,7 +505,7 @@ func TestAvgDailyDrivingDuration(t *testing.T) {
 	cases := []testCase{
 		{
 			desc: "default to using tags",
-			
+
 			expectedHumanLabel: "TimescaleDB average driver driving duration per day",
 			expectedHumanDesc:  "TimescaleDB average driver driving duration per day",
 			expectedHypertable: iot.ReadingsTableName,
@@ -526,10 +526,10 @@ func TestAvgDailyDrivingDuration(t *testing.T) {
 		INNER JOIN tags t ON t.id = d.tags_id
 		GROUP BY fleet, name, driver`,
 		},
-		
+
 		{
 			desc: "use JSON",
-			
+
 			useJSON:            true,
 			expectedHumanLabel: "TimescaleDB average driver driving duration per day",
 			expectedHumanDesc:  "TimescaleDB average driver driving duration per day",
@@ -552,7 +552,7 @@ func TestAvgDailyDrivingDuration(t *testing.T) {
 		GROUP BY fleet, name, driver`,
 		},
 	}
-	
+
 	for _, c := range cases {
 		b := BaseGenerator{
 			UseJSON: c.useJSON,
@@ -561,13 +561,13 @@ func TestAvgDailyDrivingDuration(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Error while creating iot generator")
 		}
-		
+
 		g := ig.(*IoT)
-		
+
 		q := g.GenerateEmptyQuery()
 		rand.Seed(123)
 		g.AvgDailyDrivingDuration(q)
-		
+
 		verifyQuery(t, q, c.expectedHumanLabel, c.expectedHumanDesc, c.expectedHypertable, c.expectedSQLQuery)
 	}
 }
@@ -576,7 +576,7 @@ func TestAvgDailyDrivingSession(t *testing.T) {
 	cases := []testCase{
 		{
 			desc: "default to using tags",
-			
+
 			expectedHumanLabel: "TimescaleDB average driver driving session without stopping per day",
 			expectedHumanDesc:  "TimescaleDB average driver driving session without stopping per day",
 			expectedHypertable: iot.ReadingsTableName,
@@ -603,10 +603,10 @@ func TestAvgDailyDrivingSession(t *testing.T) {
 		GROUP BY name, day
 		ORDER BY name, day`,
 		},
-		
+
 		{
 			desc: "use JSON",
-			
+
 			useJSON:            true,
 			expectedHumanLabel: "TimescaleDB average driver driving session without stopping per day",
 			expectedHumanDesc:  "TimescaleDB average driver driving session without stopping per day",
@@ -635,7 +635,7 @@ func TestAvgDailyDrivingSession(t *testing.T) {
 		ORDER BY name, day`,
 		},
 	}
-	
+
 	for _, c := range cases {
 		b := BaseGenerator{
 			UseJSON: c.useJSON,
@@ -644,13 +644,13 @@ func TestAvgDailyDrivingSession(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Error while creating iot generator")
 		}
-		
+
 		g := ig.(*IoT)
-		
+
 		q := g.GenerateEmptyQuery()
 		rand.Seed(123)
 		g.AvgDailyDrivingSession(q)
-		
+
 		verifyQuery(t, q, c.expectedHumanLabel, c.expectedHumanDesc, c.expectedHypertable, c.expectedSQLQuery)
 	}
 }
@@ -659,7 +659,7 @@ func TestAvgLoad(t *testing.T) {
 	cases := []testCase{
 		{
 			desc: "default to using tags",
-			
+
 			expectedHumanLabel: "TimescaleDB average load per truck model per fleet",
 			expectedHumanDesc:  "TimescaleDB average load per truck model per fleet",
 			expectedHypertable: iot.ReadingsTableName,
@@ -673,10 +673,10 @@ func TestAvgLoad(t *testing.T) {
 		WHERE t.name IS NOT NULL
 		GROUP BY fleet, model, load_capacity`,
 		},
-		
+
 		{
 			desc: "use JSON",
-			
+
 			useJSON:            true,
 			expectedHumanLabel: "TimescaleDB average load per truck model per fleet",
 			expectedHumanDesc:  "TimescaleDB average load per truck model per fleet",
@@ -692,7 +692,7 @@ func TestAvgLoad(t *testing.T) {
 		GROUP BY fleet, model, load_capacity`,
 		},
 	}
-	
+
 	for _, c := range cases {
 		b := BaseGenerator{
 			UseJSON: c.useJSON,
@@ -701,13 +701,13 @@ func TestAvgLoad(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Error while creating iot generator")
 		}
-		
+
 		g := ig.(*IoT)
-		
+
 		q := g.GenerateEmptyQuery()
 		rand.Seed(123)
 		g.AvgLoad(q)
-		
+
 		verifyQuery(t, q, c.expectedHumanLabel, c.expectedHumanDesc, c.expectedHypertable, c.expectedSQLQuery)
 	}
 }
@@ -716,7 +716,7 @@ func TestDailyTruckActivity(t *testing.T) {
 	cases := []testCase{
 		{
 			desc: "default to using tags",
-			
+
 			expectedHumanLabel: "TimescaleDB daily truck activity per fleet per model",
 			expectedHumanDesc:  "TimescaleDB daily truck activity per fleet per model",
 			expectedHypertable: iot.ReadingsTableName,
@@ -732,10 +732,10 @@ func TestDailyTruckActivity(t *testing.T) {
 		GROUP BY fleet, model, y.day
 		ORDER BY y.day`,
 		},
-		
+
 		{
 			desc: "use JSON",
-			
+
 			useJSON:            true,
 			expectedHumanLabel: "TimescaleDB daily truck activity per fleet per model",
 			expectedHumanDesc:  "TimescaleDB daily truck activity per fleet per model",
@@ -753,7 +753,7 @@ func TestDailyTruckActivity(t *testing.T) {
 		ORDER BY y.day`,
 		},
 	}
-	
+
 	for _, c := range cases {
 		b := BaseGenerator{
 			UseJSON: c.useJSON,
@@ -762,13 +762,13 @@ func TestDailyTruckActivity(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Error while creating iot generator")
 		}
-		
+
 		g := ig.(*IoT)
-		
+
 		q := g.GenerateEmptyQuery()
 		rand.Seed(123)
 		g.DailyTruckActivity(q)
-		
+
 		verifyQuery(t, q, c.expectedHumanLabel, c.expectedHumanDesc, c.expectedHypertable, c.expectedSQLQuery)
 	}
 }
@@ -777,7 +777,7 @@ func TestTruckBreakdownFrequency(t *testing.T) {
 	cases := []testCase{
 		{
 			desc: "default to using tags",
-			
+
 			expectedHumanLabel: "TimescaleDB truck breakdown frequency per model",
 			expectedHumanDesc:  "TimescaleDB truck breakdown frequency per model",
 			expectedHypertable: iot.DiagnosticsTableName,
@@ -800,10 +800,10 @@ func TestTruckBreakdownFrequency(t *testing.T) {
 		AND broken_down = false AND next_broken_down = true
 		GROUP BY model`,
 		},
-		
+
 		{
 			desc: "use JSON",
-			
+
 			useJSON:            true,
 			expectedHumanLabel: "TimescaleDB truck breakdown frequency per model",
 			expectedHumanDesc:  "TimescaleDB truck breakdown frequency per model",
@@ -828,7 +828,7 @@ func TestTruckBreakdownFrequency(t *testing.T) {
 		GROUP BY model`,
 		},
 	}
-	
+
 	for _, c := range cases {
 		b := BaseGenerator{
 			UseJSON: c.useJSON,
@@ -837,13 +837,13 @@ func TestTruckBreakdownFrequency(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Error while creating iot generator")
 		}
-		
+
 		g := ig.(*IoT)
-		
+
 		q := g.GenerateEmptyQuery()
 		rand.Seed(123)
 		g.TruckBreakdownFrequency(q)
-		
+
 		verifyQuery(t, q, c.expectedHumanLabel, c.expectedHumanDesc, c.expectedHypertable, c.expectedSQLQuery)
 	}
 }
@@ -885,18 +885,18 @@ func TestTenMinutePeriods(t *testing.T) {
 			result:         2,
 		},
 	}
-	
+
 	for _, c := range cases {
 		if got := tenMinutePeriods(c.minutesPerHour, c.duration); got != c.result {
 			t.Errorf("incorrect result for %.2f minutes per hour, duration %s: got %d want %d", c.minutesPerHour, c.duration.String(), got, c.result)
 		}
 	}
-	
+
 }
 
 func runTestCases(t *testing.T, testFunc func(*IoT, testCase) query.Query, s time.Time, e time.Time, cases []testCase) {
 	rand.Seed(123) // Setting seed for testing purposes.
-	
+
 	for _, c := range cases {
 		t.Run(c.desc, func(t *testing.T) {
 			b := BaseGenerator{}
@@ -906,7 +906,7 @@ func runTestCases(t *testing.T, testFunc func(*IoT, testCase) query.Query, s tim
 				t.Fatalf("Error while creating devops generator")
 			}
 			i := dq.(*IoT)
-			
+
 			if c.fail {
 				func() {
 					defer func() {
@@ -914,17 +914,17 @@ func runTestCases(t *testing.T, testFunc func(*IoT, testCase) query.Query, s tim
 						if r == nil {
 							t.Fatalf("did not panic when should")
 						}
-						
+
 						if r != c.failMsg {
 							t.Fatalf("incorrect fail message: got %s, want %s", r, c.failMsg)
 						}
 					}()
-					
+
 					testFunc(i, c)
 				}()
 			} else {
 				q := testFunc(i, c)
-				
+
 				verifyQuery(t, q, c.expectedHumanLabel, c.expectedHumanDesc, c.expectedHypertable, c.expectedSQLQuery)
 			}
 		})
@@ -932,23 +932,23 @@ func runTestCases(t *testing.T, testFunc func(*IoT, testCase) query.Query, s tim
 }
 func verifyQuery(t *testing.T, q query.Query, humanLabel, humanDesc, hypertable, sqlQuery string) {
 	tsq, ok := q.(*query.TimescaleDB)
-	
+
 	if !ok {
 		t.Fatal("Filled query is not *query.TimescaleDB type")
 	}
-	
+
 	if got := string(tsq.HumanLabel); got != humanLabel {
 		t.Errorf("incorrect human label:\ngot\n%s\nwant\n%s", got, humanLabel)
 	}
-	
+
 	if got := string(tsq.HumanDescription); got != humanDesc {
 		t.Errorf("incorrect human description:\ngot\n%s\nwant\n%s", got, humanDesc)
 	}
-	
+
 	if got := string(tsq.Hypertable); got != hypertable {
 		t.Errorf("incorrect hypertable:\ngot\n%s\nwant\n%s", got, hypertable)
 	}
-	
+
 	if got := string(tsq.SqlQuery); got != sqlQuery {
 		t.Errorf("incorrect SQL query:\ndiff\n%s\ngot\n%s\nwant\n%s", diff.CharacterDiff(got, sqlQuery), got, sqlQuery)
 	}
