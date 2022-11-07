@@ -1,6 +1,6 @@
 syntax = "proto3";
 package kv_service;
-option go_package = "proto";
+option go_package = "./proto";
 
 message PingRequest {
   uint64 version = 1;
