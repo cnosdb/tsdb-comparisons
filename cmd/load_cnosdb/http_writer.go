@@ -232,7 +232,7 @@ func parserLine(lines []byte) []byte {
 	ptVec := fb.EndVector(numLines)
 	models.PointsStart(fb)
 	models.PointsAddPoints(fb, ptVec)
-	models.PointsAddDatabase(fb, database)
+	models.PointsAddDb(fb, database)
 	endPoints := models.PointsEnd(fb)
 	fb.Finish(endPoints)
 	return fb.FinishedBytes()
@@ -454,7 +454,7 @@ func parsePoint(fb *flatbuffers.Builder, buf []byte) flatbuffers.UOffsetT {
 
 	models.PointStart(fb)
 	models.PointAddDb(fb, dbOff)
-	models.PointAddTable(fb, tableOff)
+	models.PointAddTab(fb, tableOff)
 	models.PointAddTags(fb, tagsOff)
 	models.PointAddFields(fb, fieldsOff)
 	models.PointAddTimestamp(fb, int64(tsInt))
