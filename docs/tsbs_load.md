@@ -10,7 +10,7 @@ running the load benchmark.
 
 The config file is separated in two top-level sections:
 ```yaml
-data-source:
+data-source:****
   ...
 loader: 
   ...

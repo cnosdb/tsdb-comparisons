@@ -8,21 +8,23 @@ if [[ -z "$EXE_FILE_NAME" ]]; then
 fi
 
 # Load parameters - common
-DATA_FILE_NAME=${DATA_FILE_NAME:-cnosdb-data.gz}
-DATABASE_PORT=${DATABASE_PORT:-8086}
+DATA_FILE_NAME=${DATA_FILE_NAME:-cnosdb-data}
+DATABASE_PORT=${DATABASE_PORT:-31007}
 
 EXE_DIR=${EXE_DIR:-$(dirname $0)}
 source ${EXE_DIR}/load_common.sh
 
-until curl http://${DATABASE_HOST}:${DATABASE_PORT}/ping 2>/dev/null; do
+until curl http://${DATABASE_HOST}:${DATABASE_PORT}/api/v1/ping 2>/dev/null; do
     echo "Waiting for CnosDB"
     sleep 1
 done
 
 # Remove previous database
-curl -X POST http://${DATABASE_HOST}:${DATABASE_PORT}/query?q=drop%20database%20${DATABASE_NAME}
+curl -X POST http://${DATABASE_HOST}:${DATABASE_PORT}/api/v1/sql \
+-u "cnosdb:xx" \
+-d "drop database if exists ${DATABASE_NAME} "
 # Load new data
-cat ${DATA_FILE} | gunzip | $EXE_FILE_NAME \
+cat ${DATA_FILE} | $EXE_FILE_NAME \
                                 --db-name=${DATABASE_NAME} \
                                 --backoff=${BACKOFF_SECS} \
                                 --workers=${NUM_WORKERS} \

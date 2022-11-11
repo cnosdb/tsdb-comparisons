@@ -57,7 +57,7 @@ func (c BenchmarkRunnerConfig) AddToFlagSet(fs *pflag.FlagSet) {
 	fs.Uint("workers", 1, "Number of parallel clients inserting")
 	fs.Uint64("limit", 0, "Number of items to insert (0 = all of them).")
 	fs.Bool("do-load", true, "Whether to write data. Set this flag to false to check input read speed.")
-	fs.Bool("do-create-db", true, "Whether to create the database. Disable on all but one client if running on a multi client setup.")
+	fs.Bool("do-create-db", false, "Whether to create the database. Disable on all but one client if running on a multi client setup.")
 	fs.Bool("do-abort-on-exist", false, "Whether to abort if a database with the given name already exists.")
 	fs.Duration("reporting-period", 10*time.Second, "Period to report write stats")
 	fs.String("file", "", "File name to read data from")

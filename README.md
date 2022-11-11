@@ -63,8 +63,9 @@ $ go install ./...
 ```bash
 $ generate_data --use-case="iot" --seed=123 --scale=4000 \
     --timestamp-start="2022-01-01T00:00:00Z" \
-    --timestamp-end="2022-01-04T00:00:00Z" \
-    --log-interval="10s" --format="cnosdb" \
+    --timestamp-end="2022-02-01T00:00:00Z" \
+    --log-interval="10s" \
+    --format="cnosdb" \
     | gzip > /tmp/cnosdb-data.gz
 
 ```
@@ -91,7 +92,7 @@ IoT用例生成的数据可能包含无序、缺失或空的条目，以便更�
 ```bash
 $ generate_queries --use-case="iot" --seed=123 --scale=4000 \
     --timestamp-start="2022-01-01T00:00:00Z" \
-    --timestamp-end="2022-01-04T00:00:01Z" \
+    --timestamp-end="2022-02-01T00:00:00Z" \
     --queries=1000 --query-type="avg-daily-driving-duration" --format="cnosdb" \
     | gzip > /tmp/cnodsb-queries-avg-daily-driving-duration.gz
 ```
@@ -115,7 +116,7 @@ cat /tmp/cnosdb-data.gz | gunzip | load_cnosdb
 ```bash
 # Will insert using 2 clients, batch sizes of 10k, from a file
 # named `cnosdb-data.gz` in directory `/tmp`
-$ NUM_WORKERS=2 BATCH_SIZE=10000 BULK_DATA_DIR=/tmp \
+$ NUM_WORKERS=6 BATCH_SIZE=10000 BULK_DATA_DIR=/tmp \
     scripts/load/load_cnosdb.sh
 ```
 
