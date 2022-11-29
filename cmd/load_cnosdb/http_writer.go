@@ -17,6 +17,7 @@ import (
 	flatbuffers "github.com/google/flatbuffers/go"
 	"github.com/valyala/fasthttp"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 const (
@@ -61,7 +62,9 @@ type HTTPWriter struct {
 
 // NewHTTPWriter returns a new HTTPWriter from the supplied HTTPWriterConfig.
 func NewHTTPWriter(c HTTPWriterConfig, consistency string) *HTTPWriter {
-	conn, err := grpc.Dial(c.Host, grpc.WithInsecure(), grpc.WithBlock(), grpc.WithTimeout(10*time.Second))
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	conn, err := grpc.DialContext(ctx, c.Host, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
 	if err != nil {
 		panic(err)
 	}
