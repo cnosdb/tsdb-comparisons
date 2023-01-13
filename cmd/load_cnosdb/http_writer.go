@@ -70,11 +70,12 @@ func basicAuth(username, password string) string {
 	auth := username + ":" + password
 	return "Basic " + base64.StdEncoding.EncodeToString([]byte(auth))
 }
+
 func (w *HTTPWriter) initializeReq(req *fasthttp.Request, body []byte, isGzip bool) {
 	req.Header.SetContentTypeBytes(textPlain)
 	req.Header.SetMethodBytes(methodPost)
 	req.Header.SetRequestURIBytes(w.url)
-	req.Header.Add(fasthttp.HeaderAuthorization, basicAuth("cnosdb", ""))
+	req.Header.Add(fasthttp.HeaderAuthorization, basicAuth("root", ""))
 
 	if isGzip {
 		req.Header.Add(headerContentEncoding, headerGzip)

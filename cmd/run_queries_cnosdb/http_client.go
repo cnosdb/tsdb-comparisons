@@ -1,16 +1,20 @@
 package main
 
 import (
+	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
 	"sync"
 	"time"
-	
+
 	"github.com/cnosdb/tsdb-comparisons/pkg/query"
+	"github.com/valyala/fasthttp"
 )
 
 var bytesSlash = []byte("/") // heap optimization
@@ -28,7 +32,7 @@ type HTTPClient struct {
 type HTTPClientDoOptions struct {
 	Debug                int
 	PrettyPrintResponses bool
-	chunkSize            uint64
+	tenant               string
 	database             string
 }
 
@@ -55,6 +59,11 @@ func NewHTTPClient(host string) *HTTPClient {
 	}
 }
 
+func basicAuth(username, password string) string {
+	auth := username + ":" + password
+	return "Basic " + base64.StdEncoding.EncodeToString([]byte(auth))
+}
+
 // Do performs the action specified by the given Query. It uses fasthttp, and
 // tries to minimize heap allocations.
 func (w *HTTPClient) Do(q *query.HTTP, opts *HTTPClientDoOptions) (lag float64, err error) {
@@ -63,18 +72,15 @@ func (w *HTTPClient) Do(q *query.HTTP, opts *HTTPClientDoOptions) (lag float64, 
 	w.uri = append(w.uri, w.Host...)
 	// w.uri = append(w.uri, bytesSlash...)
 	w.uri = append(w.uri, q.Path...)
-	w.uri = append(w.uri, []byte("&db="+url.QueryEscape(opts.database))...)
-	if opts.chunkSize > 0 {
-		s := fmt.Sprintf("&chunked=true&chunk_size=%d", opts.chunkSize)
-		w.uri = append(w.uri, []byte(s)...)
-	}
-	
+	w.uri = append(w.uri, []byte("?tenant=cnosdb&db="+url.QueryEscape(opts.database))...)
+
 	// populate a request with data from the Query:
-	req, err := http.NewRequest(string(q.Method), string(w.uri), nil)
+	req, err := http.NewRequest(string(q.Method), string(w.uri), bytes.NewReader(q.Body))
+	req.Header.Add(fasthttp.HeaderAuthorization, basicAuth("root", ""))
 	if err != nil {
 		panic(err)
 	}
-	
+
 	// Perform the request while tracking latency:
 	start := time.Now()
 	resp, err := w.client.Do(req)
@@ -83,18 +89,23 @@ func (w *HTTPClient) Do(q *query.HTTP, opts *HTTPClientDoOptions) (lag float64, 
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		panic("http request did not return status 200 OK")
+		respMsg, err := io.ReadAll(resp.Body)
+		if err == nil {
+			panic(fmt.Sprintf("query request returned non-200 code: %d: %s", resp.StatusCode, respMsg))
+		} else {
+			panic(fmt.Sprintf("query request returned non-200 code: %d", resp.StatusCode))
+		}
 	}
-	
+
 	var body []byte
 	body, err = ioutil.ReadAll(resp.Body)
-	
+
 	if err != nil {
 		panic(err)
 	}
-	
+
 	lag = float64(time.Since(start).Nanoseconds()) / 1e6 // milliseconds
-	
+
 	if opts != nil {
 		// Print debug messages, if applicable:
 		switch opts.Debug {
@@ -111,12 +122,12 @@ func (w *HTTPClient) Do(q *query.HTTP, opts *HTTPClientDoOptions) (lag float64, 
 			fmt.Fprintf(os.Stderr, "debug:   response: %s\n", string(body))
 		default:
 		}
-		
+
 		// Pretty print JSON responses, if applicable:
 		if opts.PrettyPrintResponses {
 			// Assumes the response is JSON! This holds for Influx
 			// and Elastic.
-			
+
 			prefix := fmt.Sprintf("ID %d: ", q.GetID())
 			var v interface{}
 			var line []byte
@@ -131,6 +142,6 @@ func (w *HTTPClient) Do(q *query.HTTP, opts *HTTPClientDoOptions) (lag float64, 
 			fmt.Println(string(line) + "\n")
 		}
 	}
-	
+
 	return lag, err
 }
