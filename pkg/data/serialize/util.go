@@ -29,6 +29,7 @@ func FastFormatAppend(v interface{}, buf []byte) []byte {
 		buf = append(buf, v.(string)...)
 		return buf
 	case nil:
+		buf = append(buf, []byte("NULL")...)
 		return buf
 	default:
 		panic(fmt.Sprintf("unknown field type for %#v", v))
