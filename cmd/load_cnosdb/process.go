@@ -60,7 +60,7 @@ func (p *processor) ProcessBatch(b targets.Batch, doLoad bool) (uint64, uint64) 
 			}
 		}
 		if err != nil {
-			fatal("Error writing: %s\n", err.Error())
+			fmt.Printf("Error writing: %s\n", err.Error())
 		}
 	}
 	metricCnt := batch.metrics
