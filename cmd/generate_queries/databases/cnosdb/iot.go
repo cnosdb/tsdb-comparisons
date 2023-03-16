@@ -201,7 +201,7 @@ func (i *IoT) AvgDailyDrivingDuration(qi query.Query) {
 		FROM (SELECT DATE_BIN(INTERVAL '10 minutes', time, TIMESTAMP '1970-01-01T00:00:00Z') as "time", "fleet", "name", "driver", avg("velocity") as "mv" 
 		 FROM "readings" 
 		 WHERE time > '%s' AND time < '%s' 
-		 GROUP BY time, "fleet", "name", "driver")
+		 GROUP BY DATE_BIN(INTERVAL '10 minutes', time, TIMESTAMP '1970-01-01T00:00:00Z'), "fleet", "name", "driver")
 		WHERE time > '%s' AND time < '%s' 
 		GROUP BY DATE_BIN(INTERVAL '1 day', time, TIMESTAMP '1970-01-01T00:00:00Z'), "fleet", "name", "driver"`,
 		start,
