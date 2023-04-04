@@ -35,7 +35,7 @@ type dbCreator struct {
 	ds   targets.DataSource
 	opts *LoadingOptions
 
-	session *client.Session
+	session client.Session
 }
 
 func (d *dbCreator) Init() {
@@ -45,7 +45,8 @@ func (d *dbCreator) Init() {
 		Host:     d.opts.Host,
 		Port:     d.opts.Port,
 		UserName: d.opts.User,
-		Password: d.opts.Pass}
+		Password: d.opts.Pass,
+	}
 	d.session = client.NewSession(config)
 	if err := d.session.Open(false, 0); err != nil {
 		fmt.Printf("Connect to iotdb %+v failed %v\n", config, err)
@@ -84,7 +85,7 @@ func (d *dbCreator) PostCreateDB(dbName string) error {
 		tableCols[tableName] = columns
 
 		path := "root." + dbName + "." + tableName
-		d.session.ExecuteStatement("delete from " + path)
+		d.session.DeleteTimeseries([]string{path})
 		//fmt.Printf("=== path %s\n", path)
 
 		for i, name := range tagNames {

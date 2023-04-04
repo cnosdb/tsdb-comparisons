@@ -6,7 +6,7 @@ require (
 	github.com/HdrHistogram/hdrhistogram-go v1.0.0
 	github.com/StackExchange/wmi v0.0.0-20190523213315-cbe66965904d // indirect
 	github.com/andreyvit/diff v0.0.0-20170406064948-c7f18ee00883
-	github.com/apache/iotdb-client-go v0.12.0
+	github.com/apache/iotdb-client-go v1.1.0
 	github.com/blagojts/viper v1.6.3-0.20200313094124-068f44cf5e69
 	github.com/go-ole/go-ole v1.2.4 // indirect
 	github.com/go-sql-driver/mysql v1.5.0 // indirect
@@ -30,5 +30,4 @@ require (
 	golang.org/x/crypto v0.0.0-20200820211705-5c72a883971a // indirect
 	golang.org/x/time v0.0.0-20200630173020-3af7569d3a1e
 	gopkg.in/yaml.v2 v2.3.0
-	gopkg.in/yaml.v3 v3.0.0-20200615113413-eeeca48fe776 // indirect
 )

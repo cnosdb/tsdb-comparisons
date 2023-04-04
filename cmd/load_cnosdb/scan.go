@@ -45,7 +45,7 @@ func (b *batch) Append(item data.LoadedPoint) {
 	that := item.Data.([]byte)
 	thatStr := string(that)
 	b.rows++
-	// Each cnosdb line is format "csv-tags csv-fields timestamp", so we split by space
+	// Each line is format "csv-tags csv-fields timestamp", so we split by space
 	// and then on the middle element, we split by comma to count number of fields added
 	args := strings.Split(thatStr, " ")
 	if len(args) != 3 {

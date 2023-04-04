@@ -19,7 +19,7 @@ type processor struct {
 	opts   *LoadingOptions
 	dbName string
 
-	session *client.Session
+	session client.Session
 }
 
 func newProcessor(opts *LoadingOptions, dbName string) *processor {
@@ -34,7 +34,8 @@ func (p *processor) Init(_ int, doLoad, hashWorkers bool) {
 		Host:     p.opts.Host,
 		Port:     p.opts.Port,
 		UserName: p.opts.User,
-		Password: p.opts.Pass}
+		Password: p.opts.Pass,
+	}
 	p.session = client.NewSession(config)
 	if err := p.session.Open(false, 0); err != nil {
 		fmt.Printf("Connect to iotdb %+v failed %v\n", config, err)
