@@ -33,7 +33,7 @@ func init() {
 	config.AddToFlagSet(pflag.CommandLine)
 	var csvDaemonUrls string
 
-	pflag.String("urls", "http://localhost:31007", "Daemon URLs, comma-separated. Will be used in a round-robin fashion.")
+	pflag.String("urls", "http://localhost:8902", "Daemon URLs, comma-separated. Will be used in a round-robin fashion.")
 	pflag.Uint64("chunk-response-size", 0, "Number of series to chunk results into. 0 means no chunking.")
 
 	pflag.Parse()
@@ -55,6 +55,10 @@ func init() {
 	if len(daemonUrls) == 0 {
 		log.Fatal("missing 'urls' flag")
 	}
+	for i, url := range daemonUrls {
+		u := strings.TrimSuffix(url, "/")
+		daemonUrls[i] = u + "/api/v1/sql?tenant=cnosdb&db="
+	}
 
 	runner = query.NewBenchmarkRunner(config)
 }
@@ -72,8 +76,8 @@ func newProcessor() query.Processor { return &processor{} }
 
 func (p *processor) Init(workerNumber int) {
 	p.opts = &HTTPClientDoOptions{
-		Debug:                runner.DebugLevel(),
-		PrettyPrintResponses: runner.DoPrintResponses(),
+		debug:                runner.DebugLevel(),
+		prettyPrintResponses: runner.DoPrintResponses(),
 		database:             runner.DatabaseName(),
 	}
 	url := daemonUrls[workerNumber%len(daemonUrls)]
