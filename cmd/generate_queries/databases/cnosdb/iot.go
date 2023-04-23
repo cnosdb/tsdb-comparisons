@@ -220,27 +220,28 @@ func (i *IoT) AvgDailyDrivingDuration(qi query.Query) {
 func (i *IoT) AvgDailyDrivingSession(qi query.Query) {
 	start := i.Interval.Start().Format(time.RFC3339)
 	end := i.Interval.End().Format(time.RFC3339)
-	cnosql := fmt.Sprintf(`SELECT "elapsed" 
-		INTO "random_measure2_1" 
-		FROM (SELECT difference("difka"), elapsed("difka", 1m) 
-		 FROM (SELECT "difka" 
-		  FROM (SELECT difference("mv") AS difka 
-		   FROM (SELECT floor(avg("velocity")/10)/floor(avg("velocity")/10) AS "mv" 
-		    FROM "readings" 
-		    WHERE "name"!='' AND time > '%s' AND time < '%s' 
-		    GROUP BY DATE_BIN(INTERVAL '10 minutes', time, TIMESTAMP '1970-01-01T00:00:00Z'), "name")  
-		   GROUP BY "name") 
-		  WHERE "difka"!=0 
-		  GROUP BY "name") 
-		 GROUP BY "name") 
-		WHERE "difference" = -2 
-		GROUP BY "name"; 
-		SELECT avg("elapsed") 
-		FROM "random_measure2_1" 
-		WHERE time > '%s' AND time < '%s' 
-		GROUP BY DATE_BIN(INTERVAL '1 day', time, TIMESTAMP '1970-01-01T00:00:00Z'),"name"`,
-		start,
-		end,
+	cnosql := fmt.Sprintf(`WITH driver_status
+		AS (
+			SELECT name, time_window(time, '10m') as ten_minutes, avg(velocity) > 5 AS driving
+			FROM readings
+			WHERE name!='' AND time > '%s' AND time < '%s'
+			GROUP BY name, ten_minutes
+			ORDER BY name, ten_minutes.start
+			), driver_status_change
+		AS (
+			SELECT name, start, lead(start) OVER (PARTITION BY name ORDER BY start) AS stop, driving
+			FROM (
+				SELECT name, ten_minutes.start AS start, driving, lag(driving) OVER (PARTITION BY name ORDER BY ten_minutes.start) AS prev_driving
+				FROM driver_status
+				) x
+			WHERE x.driving <> x.prev_driving
+			)
+		SELECT name, time_window(start, '24h') AS day, avg(stop::bigint - start::bigint) AS duration
+		FROM driver_status_change
+		WHERE name IS NOT NULL
+		AND driving = true
+		GROUP BY name, day
+		ORDER BY name, day.start`,
 		start,
 		end,
 	)
@@ -253,11 +254,16 @@ func (i *IoT) AvgDailyDrivingSession(qi query.Query) {
 
 // AvgLoad finds the average load per truck model per fleet.
 func (i *IoT) AvgLoad(qi query.Query) {
-	cnosql := `SELECT avg("ml") AS mean_load_percentage 
-		FROM (SELECT "current_load"/"load_capacity" AS "ml" 
-		 FROM "diagnostics" 
-		 GROUP BY "name", "fleet", "model") 
-		GROUP BY "fleet", "model"`
+	start := i.Interval.Start().Format(time.RFC3339)
+	end := i.Interval.End().Format(time.RFC3339)
+	cnosql := fmt.Sprintf(`SELECT avg(current_load/load_capacity)
+		FROM diagnostics
+		WHERE time >= '%s' AND time < '%s' 
+		GROUP BY fleet, model
+		limit 10`,
+		start,
+		end,
+	)
 
 	humanLabel := "cnosdb average load per truck model per fleet"
 	humanDesc := humanLabel
@@ -269,15 +275,14 @@ func (i *IoT) AvgLoad(qi query.Query) {
 func (i *IoT) DailyTruckActivity(qi query.Query) {
 	start := i.Interval.Start().Format(time.RFC3339)
 	end := i.Interval.End().Format(time.RFC3339)
-	cnosql := fmt.Sprintf(`SELECT count("ms")/144 
-		FROM (SELECT avg("status") AS ms 
-		 FROM "diagnostics" 
-		 WHERE time >= '%s' AND time < '%s' 
-		 GROUP BY DATE_BIN(INTERVAL '10 minutes', time, TIMESTAMP '1970-01-01T00:00:00Z'), "model", "fleet") 
-		WHERE time >= '%s' AND time < '%s' AND "ms"<1 
-		GROUP BY DATE_BIN(INTERVAL '10 day', time, TIMESTAMP '1970-01-01T00:00:00Z'), "model", "fleet"`,
-		start,
-		end,
+	cnosql := fmt.Sprintf(`SELECT count(ms)/144 
+			FROM 
+		(SELECT mean(status) AS ms, time_window(time, '10m') AS window, model, fleet
+			FROM diagnostics
+			WHERE time >= '%s' AND time < '%s' 
+			GROUP BY window, model, fleet) 
+			WHERE ms < 1 
+			GROUP BY time_window(window.start, '1d'), model, fleet`,
 		start,
 		end,
 	)
@@ -292,19 +297,28 @@ func (i *IoT) DailyTruckActivity(qi query.Query) {
 func (i *IoT) TruckBreakdownFrequency(qi query.Query) {
 	start := i.Interval.Start().Format(time.RFC3339)
 	end := i.Interval.End().Format(time.RFC3339)
-	cnosql := fmt.Sprintf(`SELECT count("state_changed") 
-		FROM (SELECT difference("broken_down") AS "state_changed" 
-		 FROM (SELECT floor(2*(sum("nzs")/count("nzs")))/floor(2*(sum("nzs")/count("nzs"))) AS "broken_down" 
-		  FROM (SELECT "model", "status"/"status" AS nzs 
-		   FROM "diagnostics" 
-		   WHERE time >= '%s' AND time < '%s') 
-		  WHERE time >= '%s' AND time < '%s' 
-		  GROUP BY DATE_BIN(INTERVAL '10 minutes', time, TIMESTAMP '1970-01-01T00:00:00Z'), "model") 
-		 GROUP BY "model") 
-		WHERE "state_changed" = 1 
-		GROUP BY "model"`,
-		start,
-		end,
+	cnosql := fmt.Sprintf(`WITH base 
+		AS (
+			SELECT time, model, status/status AS nzs 
+			FROM "diagnostics" 
+			where model is not null
+			and time >= '%s' AND time < '%s'
+		), breakdown_per_truck_per_ten_minutes
+		AS (
+			SELECT time_window(TIME, '10m') AS ten_minutes, model, count(nzs) / count(*) < 0.5 AS broken_down
+			FROM base
+			GROUP BY ten_minutes, model
+			), breakdowns_per_truck
+		AS (
+			SELECT model, broken_down, lead(broken_down) OVER (
+					PARTITION BY model ORDER BY ten_minutes.start
+					) AS next_broken_down
+			FROM breakdown_per_truck_per_ten_minutes
+			)
+		SELECT model, count(*)
+		FROM breakdowns_per_truck
+		WHERE broken_down = false AND next_broken_down = true
+		GROUP BY model`,
 		start,
 		end,
 	)
