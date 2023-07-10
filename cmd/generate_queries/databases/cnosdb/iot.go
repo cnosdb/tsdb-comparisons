@@ -222,7 +222,7 @@ func (i *IoT) AvgDailyDrivingSession(qi query.Query) {
 	end := i.Interval.End().Format(time.RFC3339)
 	cnosql := fmt.Sprintf(`WITH driver_status
 		AS (
-			SELECT name, time_window(time, '10m') as ten_minutes, avg(velocity) > 5 AS driving
+			SELECT name, time_window(time, interval '10 minutes') as ten_minutes, avg(velocity) > 5 AS driving
 			FROM readings
 			WHERE name!='' AND time > '%s' AND time < '%s'
 			GROUP BY name, ten_minutes
@@ -236,7 +236,7 @@ func (i *IoT) AvgDailyDrivingSession(qi query.Query) {
 				) x
 			WHERE x.driving <> x.prev_driving
 			)
-		SELECT name, time_window(start, '24h') AS day, avg(stop::bigint - start::bigint) AS duration
+		SELECT name, time_window(start, interval '24 hours') AS day, avg(stop::bigint - start::bigint) AS duration
 		FROM driver_status_change
 		WHERE name IS NOT NULL
 		AND driving = true
@@ -277,12 +277,12 @@ func (i *IoT) DailyTruckActivity(qi query.Query) {
 	end := i.Interval.End().Format(time.RFC3339)
 	cnosql := fmt.Sprintf(`SELECT count(ms)/144 
 			FROM 
-		(SELECT mean(status) AS ms, time_window(time, '10m') AS window, model, fleet
+		(SELECT mean(status) AS ms, time_window(time, interval '10 minutes') AS window, model, fleet
 			FROM diagnostics
 			WHERE time >= '%s' AND time < '%s' 
 			GROUP BY window, model, fleet) 
 			WHERE ms < 1 
-			GROUP BY time_window(window.start, '1d'), model, fleet`,
+			GROUP BY time_window(window.start, interval '1 day'), model, fleet`,
 		start,
 		end,
 	)
@@ -305,7 +305,7 @@ func (i *IoT) TruckBreakdownFrequency(qi query.Query) {
 			and time >= '%s' AND time < '%s'
 		), breakdown_per_truck_per_ten_minutes
 		AS (
-			SELECT time_window(TIME, '10m') AS ten_minutes, model, count(nzs) / count(*) < 0.5 AS broken_down
+			SELECT time_window(TIME, interval '10 minutes') AS ten_minutes, model, count(nzs) / count(*) < 0.5 AS broken_down
 			FROM base
 			GROUP BY ten_minutes, model
 			), breakdowns_per_truck
