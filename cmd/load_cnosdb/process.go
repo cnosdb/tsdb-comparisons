@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
+	"github.com/valyala/fasthttp"
 	"time"
 
 	"github.com/cnosdb/tsdb-comparisons/pkg/targets"
@@ -48,8 +50,16 @@ func (p *processor) ProcessBatch(b targets.Batch, doLoad bool) (uint64, uint64) 
 	if doLoad {
 		var err error
 		for {
-
-			_, err = p.httpWriter.WriteLineProtocol(batch.buf.Bytes(), false)
+			if useGzip {
+				compressedBatch := bufPool.Get().(*bytes.Buffer)
+				fasthttp.WriteGzip(compressedBatch, batch.buf.Bytes())
+				_, err = p.httpWriter.WriteLineProtocol(compressedBatch.Bytes(), true)
+				// Return the compressed batch buffer to the pool.
+				compressedBatch.Reset()
+				bufPool.Put(compressedBatch)
+			} else {
+				_, err = p.httpWriter.WriteLineProtocol(batch.buf.Bytes(), false)
+			}
 
 			if err == errBackoff {
 				p.backingOffChan <- true
