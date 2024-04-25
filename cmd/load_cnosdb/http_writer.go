@@ -6,7 +6,6 @@ import (
 	"bytes"
 	"encoding/base64"
 	"fmt"
-	"net/url"
 	"time"
 
 	"github.com/valyala/fasthttp"
@@ -57,7 +56,7 @@ func NewHTTPWriter(c HTTPWriterConfig, consistency string) *HTTPWriter {
 		},
 
 		c:   c,
-		url: []byte(c.Host + "/api/v1/write?consistency=" + consistency + "&db=" + url.QueryEscape(c.Database)),
+		url: []byte(c.Host),
 	}
 }
 

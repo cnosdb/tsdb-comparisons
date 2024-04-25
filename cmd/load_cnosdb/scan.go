@@ -10,7 +10,7 @@ import (
 	"github.com/cnosdb/tsdb-comparisons/pkg/targets"
 )
 
-const errNotThreeTuplesFmt = "parse error: line does not have 3 tuples, has %d"
+// const errNotThreeTuplesFmt = "parse error: line does not have 3 tuples, has %d"
 
 var newLine = []byte("\n")
 
@@ -47,12 +47,12 @@ func (b *batch) Append(item data.LoadedPoint) {
 	b.rows++
 	// Each line is format "csv-tags csv-fields timestamp", so we split by space
 	// and then on the middle element, we split by comma to count number of fields added
-	args := strings.Split(thatStr, " ")
+	/*args := strings.Split(thatStr, " ")
 	if len(args) != 3 {
 		fatal(errNotThreeTuplesFmt, len(args))
 		return
-	}
-	b.metrics += uint64(len(strings.Split(args[1], ",")))
+	}*/
+	b.metrics += uint64(len(strings.Split(thatStr, ",")))
 
 	b.buf.Write(that)
 	b.buf.Write(newLine)
