@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"net/url"
 	"time"
-	
+
 	"github.com/valyala/fasthttp"
 )
 
@@ -20,22 +20,22 @@ const (
 var (
 	errBackoff          = fmt.Errorf("backpressure is needed")
 	backoffMagicWords0  = []byte("engine: cache maximum memory size exceeded")
-	backoffMagicWords1  = []byte("write failed: hinted handoff queue not empty")
-	backoffMagicWords2a = []byte("write failed: read message type: read tcp")
+	backoffMagicWords1  = []byte("hinted handoff queue not empty")
+	backoffMagicWords2a = []byte("read message type: read tcp")
 	backoffMagicWords2b = []byte("i/o timeout")
-	backoffMagicWords3  = []byte("write failed: engine: cache-max-memory-size exceeded")
+	backoffMagicWords3  = []byte("engine: cache-max-memory-size exceeded")
 	backoffMagicWords4  = []byte("timeout")
-	backoffMagicWords5  = []byte("write failed: can not exceed max connections of 500")
+	backoffMagicWords5  = []byte("can not exceed max connections of 500")
 )
 
 // HTTPWriterConfig is the configuration used to create an HTTPWriter.
 type HTTPWriterConfig struct {
 	// URL of the host, in form "http://example.com:8086"
 	Host string
-	
+
 	// Name of the target database into which points will be written.
 	Database string
-	
+
 	// Debug label for more informative errors.
 	DebugInfo string
 }
@@ -43,7 +43,7 @@ type HTTPWriterConfig struct {
 // HTTPWriter is a Writer that writes to an InfluxDB HTTP server.
 type HTTPWriter struct {
 	client fasthttp.Client
-	
+
 	c   HTTPWriterConfig
 	url []byte
 }
@@ -54,7 +54,7 @@ func NewHTTPWriter(c HTTPWriterConfig, consistency string) *HTTPWriter {
 		client: fasthttp.Client{
 			Name: httpClientName,
 		},
-		
+
 		c:   c,
 		url: []byte(c.Host + "/write?consistency=" + consistency + "&db=" + url.QueryEscape(c.Database)),
 	}
@@ -97,10 +97,10 @@ func (w *HTTPWriter) WriteLineProtocol(body []byte, isGzip bool) (int64, error) 
 	req := fasthttp.AcquireRequest()
 	defer fasthttp.ReleaseRequest(req)
 	w.initializeReq(req, body, isGzip)
-	
+
 	resp := fasthttp.AcquireResponse()
 	defer fasthttp.ReleaseResponse(resp)
-	
+
 	return w.executeReq(req, resp)
 }
 
