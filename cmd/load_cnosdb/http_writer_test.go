@@ -37,7 +37,7 @@ func runHTTPServer(c chan struct{}) {
 			coinflip := atomic.AddInt64(&i, 1)
 			if coinflip%2 == 1 {
 				w.WriteHeader(http.StatusInternalServerError)
-				fmt.Fprintf(w, string(backoffMagicWords1))
+				fmt.Fprintf(w, string(backoffMagicWords0))
 			} else {
 				w.WriteHeader(http.StatusNoContent)
 				fmt.Fprintf(w, "")
@@ -198,32 +198,12 @@ func TestBackpressurePred(t *testing.T) {
 			want: true,
 		},
 		{
-			body: "yadda" + string(backoffMagicWords1),
-			want: true,
-		},
-		{
-			body: string(backoffMagicWords2a),
-			want: false, // need both magic strings or it fails
-		},
-		{
-			body: string(backoffMagicWords2a) + " AND " + string(backoffMagicWords2b),
-			want: true,
-		},
-		{
-			body: string(backoffMagicWords3) + " yadda",
-			want: true,
+			body: string(backoffMagicWords0[2:]),
+			want: false,
 		},
 		{
 			body: "yadda " + string(backoffMagicWords4) + " yadda",
 			want: true,
-		},
-		{
-			body: "foo " + string(backoffMagicWords5) + " yadda",
-			want: true,
-		},
-		{
-			body: string(backoffMagicWords0[2:]),
-			want: false,
 		},
 	}
 

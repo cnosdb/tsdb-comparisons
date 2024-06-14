@@ -19,14 +19,9 @@ const (
 )
 
 var (
-	errBackoff          = fmt.Errorf("backpressure is needed")
-	backoffMagicWords0  = []byte("engine: cache maximum memory size exceeded")
-	backoffMagicWords1  = []byte("write failed: hinted handoff queue not empty")
-	backoffMagicWords2a = []byte("write failed: read message type: read tcp")
-	backoffMagicWords2b = []byte("i/o timeout")
-	backoffMagicWords3  = []byte("write failed: engine: cache-max-memory-size exceeded")
-	backoffMagicWords4  = []byte("timeout")
-	backoffMagicWords5  = []byte("write failed: can not exceed max connections of 500")
+	errBackoff         = fmt.Errorf("backpressure is needed")
+	backoffMagicWords0 = []byte("Memory Exhausted Retry Later")
+	backoffMagicWords4 = []byte("timeout")
 )
 
 // HTTPWriterConfig is the configuration used to create an HTTPWriter.
@@ -89,7 +84,7 @@ func (w *HTTPWriter) executeReq(req *fasthttp.Request, resp *fasthttp.Response) 
 	lat := time.Since(start).Nanoseconds()
 	if err == nil {
 		sc := resp.StatusCode()
-		if sc == 500 && backpressurePred(resp.Body()) {
+		if sc == 422 && backpressurePred(resp.Body()) {
 			err = errBackoff
 		} else if sc != fasthttp.StatusOK {
 			err = fmt.Errorf("[DebugInfo: %s] Invalid write response (status %d): %s", w.c.DebugInfo, sc, resp.Body())
@@ -115,15 +110,7 @@ func (w *HTTPWriter) WriteLineProtocol(body []byte, isGzip bool) (int64, error) 
 func backpressurePred(body []byte) bool {
 	if bytes.Contains(body, backoffMagicWords0) {
 		return true
-	} else if bytes.Contains(body, backoffMagicWords1) {
-		return true
-	} else if bytes.Contains(body, backoffMagicWords2a) && bytes.Contains(body, backoffMagicWords2b) {
-		return true
-	} else if bytes.Contains(body, backoffMagicWords3) {
-		return true
 	} else if bytes.Contains(body, backoffMagicWords4) {
-		return true
-	} else if bytes.Contains(body, backoffMagicWords5) {
 		return true
 	} else {
 		return false
