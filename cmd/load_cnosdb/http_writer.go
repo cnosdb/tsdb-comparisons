@@ -4,7 +4,6 @@ package main
 
 import (
 	"bytes"
-	"encoding/base64"
 	"fmt"
 	"net/url"
 	"time"
@@ -61,16 +60,13 @@ var (
 	textPlain  = []byte("text/plain")
 )
 
-func basicAuth(username, password string) string {
-	auth := username + ":" + password
-	return "Basic " + base64.StdEncoding.EncodeToString([]byte(auth))
-}
-
 func (w *HTTPWriter) initializeReq(req *fasthttp.Request, body []byte, isGzip bool) {
 	req.Header.SetContentTypeBytes(textPlain)
 	req.Header.SetMethodBytes(methodPost)
 	req.Header.SetRequestURIBytes(w.url)
-	req.Header.Add(fasthttp.HeaderAuthorization, basicAuth("root", ""))
+	if basicAuth != "" {
+		req.Header.Add(fasthttp.HeaderAuthorization, basicAuth)
+	}
 
 	if isGzip {
 		req.Header.Add(headerContentEncoding, headerGzip)

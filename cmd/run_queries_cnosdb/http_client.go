@@ -2,9 +2,9 @@ package main
 
 import (
 	"bytes"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/valyala/fasthttp"
 	"io"
 	"net/http"
 	"net/url"
@@ -49,13 +49,7 @@ func NewHTTPClient(url string) *HTTPClient {
 		client:       getHttpClient(),
 		url:          []byte(url),
 		urlPrefixLen: len(url),
-		basicAuth:    basicAuth("root", ""),
 	}
-}
-
-func basicAuth(username, password string) string {
-	auth := username + ":" + password
-	return "Basic " + base64.StdEncoding.EncodeToString([]byte(auth))
 }
 
 // Do performs the action specified by the given Query. It uses fasthttp, and
@@ -69,9 +63,8 @@ func (w *HTTPClient) Do(q *query.HTTP, opts *HTTPClientDoOptions) (lag float64, 
 	if err != nil {
 		panic(err)
 	}
-	req.Header.Add("Authorization", w.basicAuth)
-	if err != nil {
-		panic(err)
+	if basicAuth != "" {
+		req.Header.Add(fasthttp.HeaderAuthorization, basicAuth)
 	}
 
 	// Perform the request while tracking latency:

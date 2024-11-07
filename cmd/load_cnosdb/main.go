@@ -7,12 +7,13 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"encoding/base64"
 	"fmt"
 	"log"
 	"strings"
 	"sync"
 	"time"
-	
+
 	"github.com/blagojts/viper"
 	"github.com/cnosdb/tsdb-comparisons/internal/utils"
 	"github.com/cnosdb/tsdb-comparisons/load"
@@ -30,6 +31,7 @@ var (
 	useGzip           bool
 	doAbortOnExist    bool
 	consistency       string
+	basicAuth         string
 )
 
 // Global vars
@@ -55,31 +57,34 @@ func init() {
 	target = initializers.GetTarget(constants.FormatCnosDB)
 	config = load.BenchmarkRunnerConfig{}
 	config.AddToFlagSet(pflag.CommandLine)
+	pflag.CommandLine.String("username", "root", "Basic access authentication username")
+	pflag.CommandLine.String("password", "", "Basic access authentication password")
+
 	target.TargetSpecificFlags("", pflag.CommandLine)
 	var csvDaemonURLs string
-	
+
 	pflag.Parse()
-	
+
 	err := utils.SetupConfigFile()
-	
+
 	if err != nil {
 		panic(fmt.Errorf("fatal error config file: %s", err))
 	}
-	
+
 	if err := viper.Unmarshal(&config); err != nil {
 		panic(fmt.Errorf("unable to decode config: %s", err))
 	}
-	
+
 	csvDaemonURLs = viper.GetString("urls")
 	replicationFactor = viper.GetInt("replication-factor")
 	consistency = viper.GetString("consistency")
 	backoff = viper.GetDuration("backoff")
 	useGzip = viper.GetBool("gzip")
-	
+
 	if _, ok := consistencyChoices[consistency]; !ok {
 		log.Fatalf("invalid consistency settings")
 	}
-	
+
 	daemonURLs = strings.Split(csvDaemonURLs, ",")
 	if len(daemonURLs) == 0 {
 		log.Fatal("missing 'urls' flag")
@@ -116,6 +121,12 @@ func main() {
 			return bytes.NewBuffer(make([]byte, 0, 4*1024*1024))
 		},
 	}
-	
+
+	username := viper.GetString("username")
+	password := viper.GetString("password")
+	if username != "" || password != "" {
+		basicAuth = "Basic " + base64.StdEncoding.EncodeToString([]byte(username+":"+password))
+	}
+
 	loader.RunBenchmark(&benchmark{})
 }

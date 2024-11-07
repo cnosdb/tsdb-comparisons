@@ -6,6 +6,7 @@
 package main
 
 import (
+	"encoding/base64"
 	"fmt"
 	"log"
 	"strings"
@@ -20,6 +21,7 @@ import (
 var (
 	daemonUrls []string
 	chunkSize  uint64
+	basicAuth  string
 )
 
 // Global vars:
@@ -31,6 +33,8 @@ var (
 func init() {
 	var config query.BenchmarkRunnerConfig
 	config.AddToFlagSet(pflag.CommandLine)
+	pflag.CommandLine.String("username", "root", "Basic access authentication username")
+	pflag.CommandLine.String("password", "", "Basic access authentication password")
 	var csvDaemonUrls string
 
 	pflag.String("urls", "http://localhost:8902", "Daemon URLs, comma-separated. Will be used in a round-robin fashion.")
@@ -64,6 +68,12 @@ func init() {
 }
 
 func main() {
+	username := viper.GetString("username")
+	password := viper.GetString("password")
+	if username != "" || password != "" {
+		basicAuth = "Basic " + base64.StdEncoding.EncodeToString([]byte(username+":"+password))
+	}
+
 	runner.Run(&query.HTTPPool, newProcessor)
 }
 

@@ -41,7 +41,9 @@ func (d *dbCreator) listDatabases() ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Add(fasthttp.HeaderAuthorization, basicAuth("root", ""))
+	if basicAuth != "" {
+		req.Header.Add(fasthttp.HeaderAuthorization, basicAuth)
+	}
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
@@ -80,7 +82,9 @@ func (d *dbCreator) RemoveOldDB(dbName string) error {
 	if err != nil {
 		return err
 	}
-	req.Header.Add(fasthttp.HeaderAuthorization, basicAuth("root", ""))
+	if basicAuth != "" {
+		req.Header.Add(fasthttp.HeaderAuthorization, basicAuth)
+	}
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
@@ -110,7 +114,9 @@ func (d *dbCreator) CreateDB(dbName string) error {
 	if err != nil {
 		return err
 	}
-	req.Header.Add(fasthttp.HeaderAuthorization, basicAuth("root", ""))
+	if basicAuth != "" {
+		req.Header.Add(fasthttp.HeaderAuthorization, basicAuth)
+	}
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
